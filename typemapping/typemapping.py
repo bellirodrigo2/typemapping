@@ -26,7 +26,7 @@ except ImportError:
 T = TypeVar("T")
 
 
-def is_Annotated(origin: type[Any]) -> bool:
+def is_Annotated(origin: Optional[type[Any]]) -> bool:
     return origin in (typing_extensions_Annotated, typing_Annotated)
 
 
@@ -130,7 +130,7 @@ def field_factory(
         argtype = type(default) if default not in (NO_DEFAULT, None) else None
     else:
         argtype = None
-    # daqui pra baixo
+
     funcarg = make_funcarg(
         name=obj.name,
         tgttype=argtype,
@@ -247,6 +247,18 @@ def map_func_args(
     localns: Optional[dict[str, Any]] = None,
     bt_default_fallback: bool = True,
 ) -> Tuple[Sequence[VarTypeInfo], VarTypeInfo]:
+
+    funcargs = get_func_args(func, localns, bt_default_fallback)
+    return_type = map_return_type(func, localns)
+
+    return funcargs, return_type
+
+
+def get_func_args(
+    func: Callable[..., Any],
+    localns: Optional[dict[str, Any]] = None,
+    bt_default_fallback: bool = True,
+) -> Sequence[VarTypeInfo]:
     partial_args = {}
 
     if isinstance(func, partial):
@@ -270,25 +282,19 @@ def map_func_args(
         annotation: type = hints.get(name, param.annotation)
         arg = field_factory(param, annotation, bt_default_fallback)
         funcargs.append(arg)
-    return_type = map_return_type(func, localns)
 
-    return funcargs, return_type
-
-
-def get_func_args(
-    func: Callable[..., Any],
-    localns: Optional[dict[str, Any]] = None,
-    bt_default_fallback: bool = True,
-) -> Sequence[VarTypeInfo]:
-    funcargs, _ = map_func_args(func, localns, bt_default_fallback)
     return funcargs
 
 
-def get_field_type(tgt: type[Any], fieldname: str) -> Optional[type[Any]]:
-    cls_th = get_type_hints(tgt)
+def get_field_type_(
+    tgt: type[Any],
+    fieldname: str,
+    localns: Optional[dict[str, Any]] = None,
+) -> Optional[type[Any]]:
+    cls_th = get_safe_type_hints(tgt, localns)
     if fieldname in cls_th:
         return cls_th[fieldname]
-    init_th = get_type_hints(tgt.__init__)
+    init_th = get_safe_type_hints(tgt.__init__, localns)
     if fieldname in init_th:
         return init_th[fieldname]
 
@@ -303,9 +309,20 @@ def get_field_type(tgt: type[Any], fieldname: str) -> Optional[type[Any]]:
     except TypeError:
         pass
     try:
-        prop_th = get_type_hints(attr.fget)
+        prop_th = get_safe_type_hints(attr.fget, localns)
         if ret in prop_th:
             return prop_th[ret]
     except AttributeError:
         pass
     return None
+
+
+def get_field_type(
+    tgt: type[Any],
+    fieldname: str,
+    localns: Optional[dict[str, Any]] = None,
+) -> Optional[type[Any]]:
+    btype = get_field_type_(tgt, fieldname, localns)
+    if btype is not None and is_Annotated(get_origin(btype)):
+        btype = get_args(btype)[0]
+    return btype

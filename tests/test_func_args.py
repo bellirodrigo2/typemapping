@@ -146,5 +146,31 @@ class TestVarTypeInfos(unittest.TestCase):
         self.assertEqual(w, bool)
         self.assertEqual(z, int)
 
+
+    def test_class_field_annotated(self)->None:
+        class Model:
+            x: Annotated[int,'argx']
+
+            def __init__(self, y: Annotated[str,'argy']) -> None:
+                self.y = y
+
+            @property
+            def w(self) -> Annotated[bool,'argw']:
+                return True
+
+            def z(self) -> Annotated[int,'argz']:
+                return 42
+            
+        x = get_field_type(Model,'x')
+        y = get_field_type(Model,'y')
+        w = get_field_type(Model,'w')
+        z = get_field_type(Model,'z')
+        
+        self.assertEqual(x, int)
+        self.assertEqual(y, str)
+        self.assertEqual(w, bool)
+        self.assertEqual(z, int)
+
+
 if __name__ == "__main__":
     unittest.main()
