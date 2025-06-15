@@ -1,8 +1,13 @@
 import unittest
 from typing import Annotated, Optional, Union
 
-from typemapping.typemapping import NO_DEFAULT, VarTypeInfo, get_field_type, get_func_args
 from tests.test_helpers import MyClass, funcsmap
+from typemapping.typemapping import (
+    NO_DEFAULT,
+    VarTypeInfo,
+    get_field_type,
+    get_func_args,
+)
 
 
 class TestVarTypeInfos(unittest.TestCase):
@@ -124,7 +129,14 @@ class TestVarTypeInfos(unittest.TestCase):
         args = get_func_args(func=f, localns=locals())
         self.assertIs(args[0].basetype, NotDefinedType)
 
-    def test_class_field(self)->None:
+    def test_class_field_x(self) -> None:
+        class Model:
+            x: int
+
+        x = get_field_type(Model, "x")
+        self.assertEqual(x, int)
+
+    def test_class_field(self) -> None:
         class Model:
             x: int
 
@@ -137,35 +149,61 @@ class TestVarTypeInfos(unittest.TestCase):
 
             def z(self) -> int:
                 return 42
-        x = get_field_type(Model,'x')
-        y = get_field_type(Model,'y')
-        w = get_field_type(Model,'w')
-        z = get_field_type(Model,'z')
+
+        x = get_field_type(Model, "x")
+        y = get_field_type(Model, "y")
+        w = get_field_type(Model, "w")
+        z = get_field_type(Model, "z")
         self.assertEqual(x, int)
         self.assertEqual(y, str)
         self.assertEqual(w, bool)
         self.assertEqual(z, int)
 
-
-    def test_class_field_annotated(self)->None:
+    def test_class_field_y(self) -> None:
         class Model:
-            x: Annotated[int,'argx']
 
-            def __init__(self, y: Annotated[str,'argy']) -> None:
+            def __init__(self, y: str) -> None:
+                self.y = y
+
+        y = get_field_type(Model, "y")
+        self.assertEqual(y, str)
+
+    def test_class_field_w(self) -> None:
+        class Model:
+            @property
+            def w(self) -> bool:
+                return True
+
+        w = get_field_type(Model, "w")
+        self.assertEqual(w, bool)
+
+    def test_class_field_z(self) -> None:
+        class Model:
+            def z(self) -> int:
+                return 42
+
+        z = get_field_type(Model, "z")
+        self.assertEqual(z, int)
+
+    def test_class_field_annotated(self) -> None:
+        class Model:
+            x: Annotated[int, "argx"]
+
+            def __init__(self, y: Annotated[str, "argy"]) -> None:
                 self.y = y
 
             @property
-            def w(self) -> Annotated[bool,'argw']:
+            def w(self) -> Annotated[bool, "argw"]:
                 return True
 
-            def z(self) -> Annotated[int,'argz']:
+            def z(self) -> Annotated[int, "argz"]:
                 return 42
-            
-        x = get_field_type(Model,'x')
-        y = get_field_type(Model,'y')
-        w = get_field_type(Model,'w')
-        z = get_field_type(Model,'z')
-        
+
+        x = get_field_type(Model, "x")
+        y = get_field_type(Model, "y")
+        w = get_field_type(Model, "w")
+        z = get_field_type(Model, "z")
+
         self.assertEqual(x, int)
         self.assertEqual(y, str)
         self.assertEqual(w, bool)
