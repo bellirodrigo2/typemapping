@@ -65,7 +65,7 @@ coverage.xml
 dist/
 build/
 *.egg-info/
-
+*.egg/
 # macOS specific files
 .DS_Store
 
