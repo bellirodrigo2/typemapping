@@ -294,9 +294,13 @@ def get_field_type_(
     cls_th = get_safe_type_hints(tgt, localns)
     if fieldname in cls_th:
         return cls_th[fieldname]
-    init_th = get_safe_type_hints(tgt.__init__, localns)
-    if fieldname in init_th:
-        return init_th[fieldname]
+
+    try:
+        init_th = get_safe_type_hints(tgt.__init__, localns)
+        if fieldname in init_th:
+            return init_th[fieldname]
+    except AttributeError:
+        pass
 
     attr = getattr(tgt, fieldname, None)
     if attr is None:
