@@ -3,20 +3,21 @@ import sys
 from dataclasses import MISSING, Field, dataclass, fields, is_dataclass
 from functools import partial
 from inspect import Parameter, signature
-from typing import (
+
+from typing_extensions import Annotated as typing_extensions_Annotated
+from typing_extensions import (
     Any,
     Callable,
     Optional,
     Sequence,
     Tuple,
+    Type,
     TypeVar,
     Union,
     get_args,
     get_origin,
     get_type_hints,
 )
-
-from typing_extensions import Annotated as typing_extensions_Annotated
 
 try:
     from typing import Annotated as typing_Annotated
@@ -53,7 +54,7 @@ class VarTypeInfo:
         except TypeError:
             return False
 
-    def getinstance(self, tgttype: type[T], default: bool = True) -> Optional[T]:
+    def getinstance(self, tgttype: Type[T], default: bool = True) -> Optional[T]:
         if self.extras is not None:
             founds = [e for e in self.extras if isinstance(e, tgttype)]
             if len(founds) > 0:
@@ -143,7 +144,7 @@ def field_factory(
 
 def make_funcarg(
     name: str,
-    tgttype: type[Any],
+    tgttype: Type[Any],
     annotation: Optional[type[Any]] = None,
     default: Any = None,
     has_default: bool = False,
@@ -287,7 +288,7 @@ def get_func_args(
 
 
 def get_field_type_(
-    tgt: type[Any],
+    tgt: Type[Any],
     fieldname: str,
     localns: Optional[dict[str, Any]] = None,
 ) -> Optional[type[Any]]:
@@ -322,7 +323,7 @@ def get_field_type_(
 
 
 def get_field_type(
-    tgt: type[Any],
+    tgt: Type[Any],
     fieldname: str,
     localns: Optional[dict[str, Any]] = None,
 ) -> Optional[type[Any]]:
