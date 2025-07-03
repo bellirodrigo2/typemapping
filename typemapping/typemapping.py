@@ -243,6 +243,11 @@ def map_return_type(
     )
 
 
+def get_return_type(func: Callable[..., Any]) -> Optional[Type[Any]]:
+    returntype = map_return_type(func)
+    return returntype.basetype
+
+
 def map_func_args(
     func: Callable[..., Any],
     localns: Optional[dict[str, Any]] = None,
