@@ -32,6 +32,10 @@ def is_Annotated(bt: Optional[Type[Any]]) -> bool:
     return origin in (typing_extensions_Annotated, typing_Annotated)
 
 
+def is_equal_type(t1: Type[Any], t2: Type[Any]) -> bool:
+    return get_origin(t1) == get_origin(t2) and get_args(t1) == get_args(t2)
+
+
 @dataclass
 class VarTypeInfo:
     name: str
@@ -65,6 +69,8 @@ class VarTypeInfo:
             return False
 
     def getinstance(self, tgttype: Type[T], default: bool = True) -> Optional[T]:
+        if not isinstance(tgttype, type):
+            return None
         if self.extras is not None:
             founds = [e for e in self.extras if isinstance(e, tgttype)]
             if len(founds) > 0:
