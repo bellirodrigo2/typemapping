@@ -9,7 +9,7 @@ readme = "README.md"
 requires-python = ">=3.7"
 
 dependencies = [
-    "typing-extensions>=4.13.2"
+    "typing-extensions>=4.13.2","beartype","typing-inspect","typeguard"
 ]
 
 [project.optional-dependencies]

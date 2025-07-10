@@ -2,12 +2,7 @@ import unittest
 from typing import Annotated, Optional, Union
 
 from tests.test_helpers import MyClass, funcsmap
-from typemapping.typemapping import (
-    NO_DEFAULT,
-    VarTypeInfo,
-    get_field_type,
-    get_func_args,
-)
+from typemapping import NO_DEFAULT, VarTypeInfo, get_field_type, get_func_args
 
 
 class TestVarTypeInfos(unittest.TestCase):

@@ -27,30 +27,40 @@ except ImportError:
 T = TypeVar("T")
 
 
-def is_Annotated(origin: Optional[type[Any]]) -> bool:
+def is_Annotated(bt: Optional[Type[Any]]) -> bool:
+    origin = get_origin(bt)
     return origin in (typing_extensions_Annotated, typing_Annotated)
 
 
 @dataclass
 class VarTypeInfo:
     name: str
-    argtype: Optional[type[Any]]
-    basetype: Optional[type[Any]]
+    argtype: Optional[Type[Any]]
+    basetype: Optional[Type[Any]]
     default: Optional[Any]
     has_default: bool = False
     extras: Optional[tuple[Any]] = None
 
     @property
-    def origin(self) -> Optional[type[Any]]:
+    def origin(self) -> Optional[Type[Any]]:
         return get_origin(self.basetype)
 
     @property
     def args(self) -> tuple[Any, ...]:
         return get_args(self.basetype)
 
+    def isequal(self, arg: Any) -> bool:
+        if is_Annotated(arg):
+            return self.isequal(get_args(arg)[0])
+        if get_origin(arg) is None:
+            return self.basetype == arg
+        return self.origin == get_origin(arg) and self.args == get_args(arg)
+
     def istype(self, tgttype: type) -> bool:
+        if is_Annotated(tgttype):
+            return self.isequal(get_args(tgttype)[0])
         try:
-            return self.basetype == tgttype or (issubclass(self.basetype, tgttype))  # type: ignore
+            return self.isequal(tgttype) or (issubclass(self.basetype, tgttype))  # type: ignore
         except TypeError:
             return False
 
@@ -145,7 +155,7 @@ def field_factory(
 def make_funcarg(
     name: str,
     tgttype: Type[Any],
-    annotation: Optional[type[Any]] = None,
+    annotation: Optional[Type[Any]] = None,
     default: Any = None,
     has_default: bool = False,
 ) -> VarTypeInfo:
@@ -153,7 +163,7 @@ def make_funcarg(
     basetype = tgttype
     extras = None
 
-    if annotation is not None and is_Annotated(get_origin(annotation)):
+    if annotation is not None and is_Annotated(annotation):
         basetype, *extras_ = get_args(annotation)
         extras = tuple(extras_)
     return VarTypeInfo(
@@ -296,7 +306,7 @@ def get_field_type_(
     tgt: Type[Any],
     fieldname: str,
     localns: Optional[dict[str, Any]] = None,
-) -> Optional[type[Any]]:
+) -> Optional[Type[Any]]:
     cls_th = get_safe_type_hints(tgt, localns)
     if fieldname in cls_th:
         return cls_th[fieldname]
@@ -331,8 +341,8 @@ def get_field_type(
     tgt: Type[Any],
     fieldname: str,
     localns: Optional[dict[str, Any]] = None,
-) -> Optional[type[Any]]:
+) -> Optional[Type[Any]]:
     btype = get_field_type_(tgt, fieldname, localns)
-    if btype is not None and is_Annotated(get_origin(btype)):
+    if btype is not None and is_Annotated(btype):
         btype = get_args(btype)[0]
     return btype

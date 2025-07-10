@@ -9,10 +9,12 @@ __all__ = [
     "map_init_field",
     "map_return_type",
     "get_return_type",
+    "NO_DEFAULT",
 ]
 
 
 from typemapping.typemapping import (
+    NO_DEFAULT,
     VarTypeInfo,
     get_field_type,
     get_func_args,
