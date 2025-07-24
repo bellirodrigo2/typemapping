@@ -56,6 +56,7 @@ venv/
 coverage.xml
 *.coveragerc
 *.hypothesis/
+htmlcov/
 
 # Jupyter Notebooks
 .ipynb_checkpoints/

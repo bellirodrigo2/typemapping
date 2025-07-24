@@ -1,16 +1,18 @@
 import sys
-import unittest
 from typing import Dict as Dict_t
 from typing import List as List_t
 
 from typing_extensions import Annotated, Any, Dict, List, Optional, Type
 
-from typemapping.typemapping import VarTypeInfo
+from typemapping import VarTypeInfo
 
-if sys.version_info >= (3, 9):
-    TEST_TYPE = True
-else:
-    TEST_TYPE = False
+TEST_TYPE = sys.version_info >= (3, 9)
+
+
+class MyBase: ...
+
+
+class MySubBase(MyBase): ...
 
 
 def make_vartypeinfo(
@@ -31,34 +33,26 @@ def make_vartypeinfo(
     )
 
 
-class MyBase: ...
+def test_basic() -> None:
+    arg = make_vartypeinfo(basetype=MySubBase)
+    assert not arg.istype(str)
+    assert arg.istype(MyBase)
 
 
-class MySubBase(MyBase): ...
+def test_list() -> None:
+    arg = make_vartypeinfo(basetype=List[str])
+    assert arg.istype(List[str])
+    assert arg.istype(List_t[str])
+    if TEST_TYPE:
+        assert arg.istype(list[str])
+    assert arg.istype(Annotated[List_t[str], "foobar"])
+    assert not arg.istype(List[int])
 
 
-class TestVarTypeInfo(unittest.TestCase):
-
-    def test_basic(self) -> None:
-        arg = make_vartypeinfo(basetype=MySubBase)
-        self.assertFalse(arg.istype(str))
-        self.assertTrue(arg.istype(MyBase))
-
-    def test_list(self) -> None:
-        arg = make_vartypeinfo(basetype=List[str])
-        self.assertTrue(arg.istype(List[str]))
-        self.assertTrue(arg.istype(List_t[str]))
-        if TEST_TYPE:
-            self.assertTrue(arg.istype(list[str]))
-
-        self.assertTrue(arg.istype(Annotated[List_t[str], "foobar"]))
-        self.assertFalse(arg.istype(List[int]))
-
-    def test_dict(self) -> None:
-        arg = make_vartypeinfo(basetype=Dict[str, int])
-        self.assertTrue(arg.istype(Dict[str, int]))
-        self.assertTrue(arg.istype(Dict_t[str, int]))
-        if TEST_TYPE:
-            self.assertTrue(arg.istype(dict[str, int]))
-
-        self.assertTrue(arg.istype(Annotated[Dict[str, int], "foobar"]))
+def test_dict() -> None:
+    arg = make_vartypeinfo(basetype=Dict[str, int])
+    assert arg.istype(Dict[str, int])
+    assert arg.istype(Dict_t[str, int])
+    if TEST_TYPE:
+        assert arg.istype(dict[str, int])
+    assert arg.istype(Annotated[Dict[str, int], "foobar"])

@@ -1,209 +1,291 @@
-import unittest
-from typing import Annotated, Optional, Union
+from typing_extensions import Annotated, Any, Callable, Mapping, Optional, Union
 
-from tests.test_helpers import MyClass, funcsmap
 from typemapping import NO_DEFAULT, VarTypeInfo, get_field_type, get_func_args
 
-
-class TestVarTypeInfos(unittest.TestCase):
-    def setUp(self) -> None:
-        self.funcsmap = funcsmap
-
-    def test_istype_invalid_basetype(self) -> None:
-        arg = VarTypeInfo("x", argtype=None, basetype="notatype", default=None)
-        self.assertFalse(arg.istype(int))
-
-    def test_funcarg_mt(self) -> None:
-        mt = get_func_args(self.funcsmap["mt"])
-        self.assertEqual(mt, [])
-
-    def test_funcarg_simple(self) -> None:
-        simple = get_func_args(self.funcsmap["simple"])
-        self.assertEqual(len(simple), 2)
-        self.assertEqual(simple[0].name, "arg1")
-        self.assertIs(simple[0].argtype, str)
-        self.assertIs(simple[0].basetype, str)
-        self.assertEqual(simple[0].default, NO_DEFAULT)
-        self.assertIsNone(simple[0].extras)
-        self.assertTrue(simple[0].istype(str))
-        self.assertFalse(simple[0].istype(int))
-
-        self.assertEqual(simple[1].name, "arg2")
-        self.assertIs(simple[1].argtype, int)
-        self.assertIs(simple[1].basetype, int)
-        self.assertEqual(simple[1].default, NO_DEFAULT)
-        self.assertIsNone(simple[1].extras)
-        self.assertTrue(simple[1].istype(int))
-        self.assertFalse(simple[1].istype(str))
-
-    def test_funcarg_def(self) -> None:
-        def_ = get_func_args(self.funcsmap["def"])
-        self.assertEqual(len(def_), 4)
-        self.assertEqual(def_[0].default, "foobar")
-        self.assertTrue(def_[2].istype(bool))
-
-    def test_funcarg_ann(self) -> None:
-        ann = get_func_args(self.funcsmap["ann"])
-        self.assertEqual(len(ann), 4)
-
-        self.assertEqual(ann[0].name, "arg1")
-        self.assertEqual(ann[0].argtype, Annotated[str, "meta1"])
-        self.assertIs(ann[0].basetype, str)
-        self.assertEqual(ann[0].extras, ("meta1",))
-        self.assertTrue(ann[0].hasinstance(str))
-        self.assertEqual(ann[0].getinstance(str), "meta1")
-
-    def test_funcarg_mix(self) -> None:
-        mix = get_func_args(self.funcsmap["mix"])
-        self.assertEqual(len(mix), 4)
-        self.assertFalse(mix[0].istype(str))
-        self.assertIsNone(mix[0].getinstance(str))
-
-    def test_annotated_none(self) -> None:
-        args = get_func_args(self.funcsmap["annotated_none"])
-        self.assertEqual(len(args), 2)
-        self.assertEqual(args[0].basetype, Optional[str])
-        self.assertEqual(args[0].extras, ("meta",))
-        self.assertFalse(args[1].hasinstance(int))
-
-    def test_union(self) -> None:
-        args = get_func_args(self.funcsmap["union"])
-        self.assertEqual(len(args), 3)
-        self.assertEqual(args[0].argtype, Union[int, str])
-        self.assertEqual(args[1].basetype, Optional[float])
-
-    def test_varargs(self) -> None:
-        args = get_func_args(self.funcsmap["varargs"])
-        self.assertEqual(len(args), 0)
-
-    def test_kwonly(self) -> None:
-        args = get_func_args(self.funcsmap["kwonly"])
-        self.assertEqual(len(args), 2)
-        self.assertEqual(args[1].default, "default")
-
-    def test_forward(self) -> None:
-        args = get_func_args(self.funcsmap["forward"])
-        self.assertEqual(len(args), 1)
-        self.assertIs(args[0].basetype, MyClass)
-
-    def test_none_default(self) -> None:
-        args = get_func_args(self.funcsmap["none_default"])
-        self.assertEqual(len(args), 1)
-        self.assertEqual(args[0].name, "arg")
-        self.assertIsNone(args[0].default)
-        self.assertEqual(args[0].basetype, Optional[str])
-
-    def test_arg_without_type_or_default(self) -> None:
-        def func(x):
-            return x
-
-        args = get_func_args(func)
-        self.assertIsNone(args[0].argtype)
-        self.assertEqual(args[0].default, NO_DEFAULT)
-
-    def test_default_ellipsis(self) -> None:
-        def func(x: str = ...) -> str:
-            return x
-
-        args = get_func_args(func)
-        self.assertIs(args[0].default, Ellipsis)
-
-    def test_star_args_handling(self) -> None:
-        def func(a: str, *args, **kwargs):
-            return a
-
-        args = get_func_args(func)
-        self.assertEqual(len(args), 1)
-
-    def test_forward_ref_resolved(self) -> None:
-        class NotDefinedType:
-            pass
-
-        def f(x: "NotDefinedType") -> None: ...
-
-        args = get_func_args(func=f, localns=locals())
-        self.assertIs(args[0].basetype, NotDefinedType)
-
-    def test_class_field_x(self) -> None:
-        class Model:
-            x: int
-
-        x = get_field_type(Model, "x")
-        self.assertEqual(x, int)
-
-    def test_class_field(self) -> None:
-        class Model:
-            x: int
-
-            def __init__(self, y: str) -> None:
-                self.y = y
-
-            @property
-            def w(self) -> bool:
-                return True
-
-            def z(self) -> int:
-                return 42
-
-        x = get_field_type(Model, "x")
-        y = get_field_type(Model, "y")
-        w = get_field_type(Model, "w")
-        z = get_field_type(Model, "z")
-        self.assertEqual(x, int)
-        self.assertEqual(y, str)
-        self.assertEqual(w, bool)
-        self.assertEqual(z, int)
-
-    def test_class_field_y(self) -> None:
-        class Model:
-
-            def __init__(self, y: str) -> None:
-                self.y = y
-
-        y = get_field_type(Model, "y")
-        self.assertEqual(y, str)
-
-    def test_class_field_w(self) -> None:
-        class Model:
-            @property
-            def w(self) -> bool:
-                return True
-
-        w = get_field_type(Model, "w")
-        self.assertEqual(w, bool)
-
-    def test_class_field_z(self) -> None:
-        class Model:
-            def z(self) -> int:
-                return 42
-
-        z = get_field_type(Model, "z")
-        self.assertEqual(z, int)
-
-    def test_class_field_annotated(self) -> None:
-        class Model:
-            x: Annotated[int, "argx"]
-
-            def __init__(self, y: Annotated[str, "argy"]) -> None:
-                self.y = y
-
-            @property
-            def w(self) -> Annotated[bool, "argw"]:
-                return True
-
-            def z(self) -> Annotated[int, "argz"]:
-                return 42
-
-        x = get_field_type(Model, "x")
-        y = get_field_type(Model, "y")
-        w = get_field_type(Model, "w")
-        z = get_field_type(Model, "z")
-
-        self.assertEqual(x, int)
-        self.assertEqual(y, str)
-        self.assertEqual(w, bool)
-        self.assertEqual(z, int)
+# Funções de teste
 
 
-if __name__ == "__main__":
-    unittest.main()
+def func_mt() -> None:
+    pass
+
+
+def func_simple(arg1: str, arg2: int) -> None:
+    pass
+
+
+def func_def(arg1: str = "foobar", arg2: int = 12, arg3=True, arg4=None) -> None:
+    pass
+
+
+def func_ann(
+    arg1: Annotated[str, "meta1"],
+    arg2: Annotated[int, "meta1", 2],
+    arg3: Annotated[list[str], "meta1", 2, True],
+    arg4: Annotated[dict[str, Any], "meta1", 2, True] = {"foo": "bar"},
+) -> None:
+    pass
+
+
+def func_mix(arg1, arg2: Annotated[str, "meta1"], arg3: str, arg4="foobar") -> None:
+    pass
+
+
+def func_annotated_none(
+    arg1: Annotated[Optional[str], "meta"],
+    arg2: Annotated[Optional[int], "meta2"] = None,
+) -> None:
+    pass
+
+
+def func_union(
+    arg1: Union[int, str],
+    arg2: Optional[float] = None,
+    arg3: Annotated[Union[int, str], 1] = 2,
+) -> None:
+    pass
+
+
+def func_varargs(*args: int, **kwargs: str) -> None:
+    pass
+
+
+def func_kwonly(*, arg1: int, arg2: str = "default") -> None:
+    pass
+
+
+def func_forward(arg: "MyClass") -> None:
+    pass
+
+
+class MyClass:
+    pass
+
+
+def func_none_default(arg: Optional[str] = None) -> None:
+    pass
+
+
+def inj_func(
+    arg: str,
+    arg_ann: Annotated[str, ...],
+    arg_dep: str = ...,
+):
+    pass
+
+
+funcsmap: Mapping[str, Callable[..., Any]] = {
+    "mt": func_mt,
+    "simple": func_simple,
+    "def": func_def,
+    "ann": func_ann,
+    "mix": func_mix,
+    "annotated_none": func_annotated_none,
+    "union": func_union,
+    "varargs": func_varargs,
+    "kwonly": func_kwonly,
+    "forward": func_forward,
+    "none_default": func_none_default,
+}
+
+
+def test_istype_invalid_basetype() -> None:
+    arg = VarTypeInfo("x", argtype=None, basetype="notatype", default=None)
+    assert not arg.istype(int)
+
+
+def test_funcarg_mt() -> None:
+    mt = get_func_args(funcsmap["mt"])
+    assert mt == []
+
+
+def test_funcarg_simple() -> None:
+    simple = get_func_args(funcsmap["simple"])
+    assert len(simple) == 2
+    assert simple[0].name == "arg1"
+    assert simple[0].argtype is str
+    assert simple[0].basetype is str
+    assert simple[0].default == NO_DEFAULT
+    assert simple[0].extras is None
+    assert simple[0].istype(str)
+    assert not simple[0].istype(int)
+
+    assert simple[1].name == "arg2"
+    assert simple[1].argtype is int
+    assert simple[1].basetype is int
+    assert simple[1].default == NO_DEFAULT
+    assert simple[1].extras is None
+    assert simple[1].istype(int)
+    assert not simple[1].istype(str)
+
+
+def test_funcarg_def() -> None:
+    def_ = get_func_args(funcsmap["def"])
+    assert len(def_) == 4
+    assert def_[0].default == "foobar"
+    assert def_[2].istype(bool)
+
+
+def test_funcarg_ann() -> None:
+    ann = get_func_args(funcsmap["ann"])
+    assert len(ann) == 4
+
+    assert ann[0].name == "arg1"
+    assert ann[0].argtype == Annotated[str, "meta1"]
+    assert ann[0].basetype is str
+    assert ann[0].extras == ("meta1",)
+    assert ann[0].hasinstance(str)
+    assert ann[0].getinstance(str) == "meta1"
+
+
+def test_funcarg_mix() -> None:
+    mix = get_func_args(funcsmap["mix"])
+    assert len(mix) == 4
+    assert not mix[0].istype(str)
+    assert mix[0].getinstance(str) is None
+
+
+def test_annotated_none() -> None:
+    args = get_func_args(funcsmap["annotated_none"])
+    assert len(args) == 2
+    assert args[0].basetype == Optional[str]
+    assert args[0].extras == ("meta",)
+    assert not args[1].hasinstance(int)
+
+
+def test_union() -> None:
+    args = get_func_args(funcsmap["union"])
+    assert len(args) == 3
+    assert args[0].argtype == Union[int, str]
+    assert args[1].basetype == Optional[float]
+
+
+def test_varargs() -> None:
+    args = get_func_args(funcsmap["varargs"])
+    assert len(args) == 0
+
+
+def test_kwonly() -> None:
+    args = get_func_args(funcsmap["kwonly"])
+    assert len(args) == 2
+    assert args[1].default == "default"
+
+
+def test_forward() -> None:
+    args = get_func_args(funcsmap["forward"])
+    assert len(args) == 1
+    assert args[0].basetype is MyClass
+
+
+def test_none_default() -> None:
+    args = get_func_args(funcsmap["none_default"])
+    assert len(args) == 1
+    assert args[0].name == "arg"
+    assert args[0].default is None
+    assert args[0].basetype == Optional[str]
+
+
+def test_arg_without_type_or_default() -> None:
+    def func(x):
+        return x
+
+    args = get_func_args(func)
+    assert args[0].argtype is None
+    assert args[0].default == NO_DEFAULT
+
+
+def test_default_ellipsis() -> None:
+    def func(x: str = ...) -> str:
+        return x
+
+    args = get_func_args(func)
+    assert args[0].default is Ellipsis
+
+
+def test_star_args_handling() -> None:
+    def func(a: str, *args, **kwargs):
+        return a
+
+    args = get_func_args(func)
+    assert len(args) == 1
+
+
+def test_forward_ref_resolved() -> None:
+    class NotDefinedType:
+        pass
+
+    def f(x: "NotDefinedType") -> None: ...
+
+    args = get_func_args(func=f, localns=locals())
+    assert args[0].basetype is NotDefinedType
+
+
+def test_class_field_x() -> None:
+    class Model:
+        x: int
+
+    assert get_field_type(Model, "x") is int
+
+
+def test_class_field() -> None:
+    class Model:
+        x: int
+
+        def __init__(self, y: str):
+            self.y = y
+
+        @property
+        def w(self) -> bool:
+            return True
+
+        def z(self) -> int:
+            return 42
+
+    assert get_field_type(Model, "x") is int
+    assert get_field_type(Model, "y") is str
+    assert get_field_type(Model, "w") is bool
+    assert get_field_type(Model, "z") is int
+
+
+def test_class_field_y() -> None:
+    class Model:
+        def __init__(self, y: str):
+            self.y = y
+
+    assert get_field_type(Model, "y") is str
+
+
+def test_class_field_w() -> None:
+    class Model:
+        @property
+        def w(self) -> bool:
+            return True
+
+    assert get_field_type(Model, "w") is bool
+
+
+def test_class_field_z() -> None:
+    class Model:
+        def z(self) -> int:
+            return 42
+
+    assert get_field_type(Model, "z") is int
+
+
+def test_class_field_annotated() -> None:
+    class Model:
+        x: Annotated[int, "argx"]
+
+        def __init__(self, y: Annotated[str, "argy"]):
+            self.y = y
+
+        @property
+        def w(self) -> Annotated[bool, "argw"]:
+            return True
+
+        def z(self) -> Annotated[int, "argz"]:
+            return 42
+
+    assert get_field_type(Model, "x") is int
+    assert get_field_type(Model, "y") is str
+    assert get_field_type(Model, "w") is bool
+    assert get_field_type(Model, "z") is int

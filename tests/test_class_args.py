@@ -1,9 +1,8 @@
-import unittest
 from dataclasses import dataclass, field
 
 from typing_extensions import Annotated, Dict, List, Optional, Union
 
-from typemapping.typemapping import (
+from typemapping import (
     NO_DEFAULT,
     VarTypeInfo,
     map_dataclass_fields,
@@ -20,11 +19,6 @@ class Meta1:
 @dataclass(frozen=True)
 class Meta2:
     pass
-
-
-# --- Definições de classes usadas nos testes --- #
-
-# Dataclasses
 
 
 @dataclass
@@ -77,9 +71,6 @@ class DataClassWithDict:
     data: Dict[str, int] = field(default_factory=Dict)
 
 
-# Classes com __init__
-
-
 class ClassSimpleDefault:
     def __init__(self, x: int = 10):
         self.x = x
@@ -114,12 +105,7 @@ class InitClass:
     def __init__(
         self, x: int, y: Optional[str] = "abc", z: Annotated[float, "meta"] = 3.14
     ):
-        self.x = x
-        self.y = y
-        self.z = z
-
-
-# Classes só com annotations (sem init nem dataclass)
+        self.x, self.y, self.z = x, y, z
 
 
 class OnlyClassSimple:
@@ -171,113 +157,119 @@ class ModelClass:
     z: Annotated[float, "meta"] = 3.14
 
 
-class TestMapFieldFunctions(unittest.TestCase):
-    def assert_vartypeinfo(
-        self, vti: VarTypeInfo, name: str, expected_type: type, expected_default: object
-    ):
-        self.assertEqual(vti.name, name)
-        self.assertEqual(vti.basetype, expected_type)
-
-        if expected_default is NO_DEFAULT:
-            self.assertEqual(vti.default, NO_DEFAULT)
-        else:
-            self.assertEqual(vti.default, expected_default)
-
-        self.assertTrue(vti.istype(expected_type))
-        self.assertTrue(vti.isequal(expected_type))
-
-    def assert_dict_like(self, vti: VarTypeInfo):
-        self.assertTrue(vti.istype(Dict[str, int]))
-        self.assertEqual(vti.args, (str, int))
-
-    def test_map_dataclass_fields(self):
-        args = map_dataclass_fields(SimpleDefault)
-        self.assert_vartypeinfo(args[0], "x", int, 10)
-
-        args = map_dataclass_fields(WithDefaultFactory)
-        self.assertEqual(args[0].name, "y")
-        self.assertEqual(args[0].basetype, List[int])
-
-        args = map_dataclass_fields(NoDefault)
-        self.assert_vartypeinfo(args[0], "z", str, NO_DEFAULT)
-
-        args = map_dataclass_fields(AnnotatedSingle)
-        self.assertEqual(args[0].name, "a")
-        self.assertEqual(args[0].extras[0].__class__.__name__, "Meta1")
-
-        args = map_dataclass_fields(AnnotatedMultiple)
-        self.assertEqual(len(args[0].extras), 2)
-
-    def test_map_init_field(self):
-        args = map_init_field(ClassSimpleDefault)
-        self.assert_vartypeinfo(args[0], "x", int, 10)
-
-        args = map_init_field(ClassOptionalNoDefault)
-        self.assertEqual(args[0].name, "c")
-        self.assertEqual(args[0].origin, Union)
-
-        args = map_init_field(ClassAnnotatedOptional)
-        self.assertEqual(args[0].name, "e")
-        self.assertEqual(args[0].origin, Union)
-        self.assertEqual(args[0].default, None)
-
-    def test_map_model_fields(self):
-        args = map_model_fields(ModelClass)
-        self.assert_vartypeinfo(args[0], "x", int, 1)
-        self.assertEqual(args[1].name, "y")
-        self.assertEqual(args[1].origin, Union)
-        self.assertEqual(args[2].name, "z")
-        self.assertEqual(args[2].extras[0], "meta")
-
-    def test_map_dataclass_edge_cases(self):
-        args = map_dataclass_fields(AnnotatedOptional)
-        self.assertEqual(args[0].name, "e")
-        self.assertEqual(args[0].default, None)
-
-        args = map_dataclass_fields(WithUnion)
-        self.assertEqual(args[0].name, "f")
-        self.assertEqual(args[0].origin, Union)
-
-    def test_map_init_field_advanced(self):
-        args = map_init_field(InitClass)
-        self.assertEqual(len(args), 3)
-        self.assertEqual(args[0].name, "x")
-        self.assertEqual(args[0].default, NO_DEFAULT)
-        self.assertEqual(args[1].default, "abc")
-        self.assertEqual(args[2].extras[0], "meta")
-
-    def test_map_dataclass_fields_advanced(self):
-        args = map_dataclass_fields(DataClass)
-        self.assertEqual(args[0].name, "x")
-        self.assertEqual(args[1].default, "abc")
-        self.assertEqual(args[2].extras[0], "meta")
-
-    def test_model_fields_extras(self):
-        args = map_model_fields(ModelClass)
-        for vti in args:
-            self.assertIsInstance(vti, VarTypeInfo)
-
-    def test_map_dataclass_fields_with_dict(self):
-        args = map_dataclass_fields(DataClassWithDict)
-        self.assertEqual(len(args), 1)
-        self.assertEqual(args[0].name, "data")
-        self.assert_dict_like(args[0])
-        self.assertEqual(args[0].default, Dict)  # default_factory output
-
-    def test_map_init_field_with_dict(self):
-        args = map_init_field(InitClassWithDict)
-        self.assertEqual(len(args), 1)
-        self.assertEqual(args[0].name, "data")
-        self.assert_dict_like(args[0])
-        self.assertEqual(args[0].default, {})  # default value
-
-    def test_map_model_fields_with_dict(self):
-        args = map_model_fields(ModelClassWithDict)
-        self.assertEqual(len(args), 1)
-        self.assertEqual(args[0].name, "data")
-        self.assert_dict_like(args[0])
-        self.assertEqual(args[0].default, {})  # set as class-level value
+# Helper functions for pytest tests
+def assert_vartypeinfo(
+    vti: VarTypeInfo, name: str, expected_type: type, expected_default: object
+):
+    assert vti.name == name
+    assert vti.basetype == expected_type
+    assert (
+        vti.default == expected_default
+        if expected_default is not NO_DEFAULT
+        else vti.default is NO_DEFAULT
+    )
+    assert vti.istype(expected_type)
+    assert vti.isequal(expected_type)
 
 
-if __name__ == "__main__":
-    unittest.main()
+def assert_dict_like(vti: VarTypeInfo):
+    assert vti.istype(Dict[str, int])
+    assert vti.args == (str, int)
+
+
+def test_map_dataclass_fields() -> None:
+    args = map_dataclass_fields(SimpleDefault)
+    assert_vartypeinfo(args[0], "x", int, 10)
+
+    args = map_dataclass_fields(WithDefaultFactory)
+    assert args[0].name == "y"
+    assert args[0].basetype == List[int]
+
+    args = map_dataclass_fields(NoDefault)
+    assert_vartypeinfo(args[0], "z", str, NO_DEFAULT)
+
+    args = map_dataclass_fields(AnnotatedSingle)
+    assert args[0].name == "a"
+    assert args[0].extras[0].__class__.__name__ == "Meta1"
+
+    args = map_dataclass_fields(AnnotatedMultiple)
+    assert len(args[0].extras) == 2
+
+
+def test_map_init_field() -> None:
+    args = map_init_field(ClassSimpleDefault)
+    assert_vartypeinfo(args[0], "x", int, 10)
+
+    args = map_init_field(ClassOptionalNoDefault)
+    assert args[0].name == "c"
+    assert args[0].origin == Union
+
+    args = map_init_field(ClassAnnotatedOptional)
+    assert args[0].name == "e"
+    assert args[0].origin == Union
+    assert args[0].default is None
+
+
+def test_map_model_fields() -> None:
+    args = map_model_fields(ModelClass)
+    assert_vartypeinfo(args[0], "x", int, 1)
+    assert args[1].name == "y"
+    assert args[1].origin == Union
+    assert args[2].name == "z"
+    assert args[2].extras[0] == "meta"
+
+
+def test_map_dataclass_edge_cases() -> None:
+    args = map_dataclass_fields(AnnotatedOptional)
+    assert args[0].name == "e"
+    assert args[0].default is None
+
+    args = map_dataclass_fields(WithUnion)
+    assert args[0].name == "f"
+    assert args[0].origin == Union
+
+
+def test_map_init_field_advanced() -> None:
+    args = map_init_field(InitClass)
+    assert len(args) == 3
+    assert args[0].name == "x"
+    assert args[0].default is NO_DEFAULT
+    assert args[1].default == "abc"
+    assert args[2].extras[0] == "meta"
+
+
+def test_map_dataclass_fields_advanced() -> None:
+    args = map_dataclass_fields(DataClass)
+    assert args[0].name == "x"
+    assert args[1].default == "abc"
+    assert args[2].extras[0] == "meta"
+
+
+def test_model_fields_extras() -> None:
+    args = map_model_fields(ModelClass)
+    for vti in args:
+        assert isinstance(vti, VarTypeInfo)
+
+
+def test_map_dataclass_fields_with_dict() -> None:
+    args = map_dataclass_fields(DataClassWithDict)
+    assert len(args) == 1
+    assert args[0].name == "data"
+    assert_dict_like(args[0])
+    assert args[0].default == Dict
+
+
+def test_map_init_field_with_dict() -> None:
+    args = map_init_field(InitClassWithDict)
+    assert len(args) == 1
+    assert args[0].name == "data"
+    assert_dict_like(args[0])
+    assert args[0].default == {}
+
+
+def test_map_model_fields_with_dict() -> None:
+    args = map_model_fields(ModelClassWithDict)
+    assert len(args) == 1
+    assert args[0].name == "data"
+    assert_dict_like(args[0])
+    assert args[0].default == {}

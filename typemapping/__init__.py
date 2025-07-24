@@ -13,16 +13,8 @@ __all__ = [
 ]
 
 
-from typemapping.typemapping import (
-    NO_DEFAULT,
-    VarTypeInfo,
-    get_field_type,
-    get_func_args,
-    get_return_type,
-    is_Annotated,
-    map_dataclass_fields,
-    map_func_args,
-    map_init_field,
-    map_model_fields,
-    map_return_type,
-)
+from typemapping.typemapping import (NO_DEFAULT, VarTypeInfo, get_field_type,
+                                     get_func_args, get_return_type,
+                                     is_Annotated, map_dataclass_fields,
+                                     map_func_args, map_init_field,
+                                     map_model_fields, map_return_type)

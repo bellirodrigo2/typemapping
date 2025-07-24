@@ -5,19 +5,9 @@ from functools import partial
 from inspect import Parameter, signature
 
 from typing_extensions import Annotated as typing_extensions_Annotated
-from typing_extensions import (
-    Any,
-    Callable,
-    Optional,
-    Sequence,
-    Tuple,
-    Type,
-    TypeVar,
-    Union,
-    get_args,
-    get_origin,
-    get_type_hints,
-)
+from typing_extensions import (Any, Callable, Optional, Sequence, Tuple, Type,
+                               TypeVar, Union, get_args, get_origin,
+                               get_type_hints)
 
 try:
     from typing import Annotated as typing_Annotated
@@ -34,6 +24,19 @@ def is_Annotated(bt: Optional[Type[Any]]) -> bool:
 
 def is_equal_type(t1: Type[Any], t2: Type[Any]) -> bool:
     return get_origin(t1) == get_origin(t2) and get_args(t1) == get_args(t2)
+
+
+def _safe_issubclass(cls: Any, classinfo: Type[Any]) -> bool:
+    """Safe version of issubclass that handles edge cases"""
+    if cls is None:
+        return False
+    try:
+        # Only call issubclass if cls is actually a class
+        if inspect.isclass(cls):
+            return issubclass(cls, classinfo)
+        return False
+    except TypeError:
+        return False
 
 
 @dataclass
@@ -64,7 +67,7 @@ class VarTypeInfo:
         if is_Annotated(tgttype):
             return self.isequal(get_args(tgttype)[0])
         try:
-            return self.isequal(tgttype) or (issubclass(self.basetype, tgttype))  # type: ignore
+            return self.isequal(tgttype) or (_safe_issubclass(self.basetype, tgttype))  # type: ignore
         except TypeError:
             return False
 
