@@ -17,7 +17,7 @@ __all__ = [
 ]
 
 
-from typemapping.typemapping2 import (NO_DEFAULT, VarTypeInfo, get_field_type,
+from typemapping.typemapping import (NO_DEFAULT, VarTypeInfo, get_field_type,
                                       get_func_args, get_return_type,
                                       get_safe_type_hints, is_Annotated,
                                       is_equal_type, map_dataclass_fields,
