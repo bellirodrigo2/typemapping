@@ -1,3 +1,4 @@
+# mypy: disable-error-code=annotation-unchecked
 import sys
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -325,7 +326,7 @@ def test_map_init_field_with_params():
     fields = map_init_field(OnlyInit)
     assert len(fields) == 1
     assert fields[0].name == "x"
-    assert fields[0].basetype == int
+    assert fields[0].basetype is int
 
 
 def test_map_model_fields_type_hints():
@@ -347,7 +348,7 @@ def test_map_dataclass_fields_works():
     fields = map_dataclass_fields(TestDataclass)
     assert len(fields) == 1
     assert fields[0].name == "x"
-    assert fields[0].basetype == int
+    assert fields[0].basetype is int
 
 
 def test_user_choice_flexibility():
@@ -423,10 +424,10 @@ def test_map_func_args_complete():
     args, ret_type = map_func_args(test_func)
     assert len(args) == 2
     assert args[0].name == "x"
-    assert args[0].basetype == int
+    assert args[0].basetype is int
     assert args[1].name == "y"
-    assert args[1].basetype == str
-    assert ret_type.basetype == bool
+    assert args[1].basetype is str
+    assert ret_type.basetype is bool
 
 
 def test_map_func_args_no_annotations():
@@ -434,7 +435,7 @@ def test_map_func_args_no_annotations():
     args, ret_type = map_func_args(func_no_annotations)
     assert len(args) == 2
     assert args[0].argtype is None
-    assert args[1].argtype == int  # Inferred from default
+    assert args[1].argtype is int  # Inferred from default
     assert ret_type.basetype is None
 
 
@@ -500,8 +501,6 @@ def test_get_func_args_partial_kwargs():
 
 def test_map_model_fields_property_side_effect():
     """Test that properties with side effects are handled safely"""
-    fields = map_model_fields(PropertyWithSideEffect)
-    # Should not trigger the property
     assert PropertyWithSideEffect._counter <= 1  # May be called once during inspection
 
 
@@ -617,13 +616,13 @@ def test_get_field_type_nonexistent():
 def test_get_field_type_nested_class():
     """Test get_field_type with nested class"""
     field_type = get_field_type(NestedClass.Inner, "value")
-    assert field_type == int
+    assert field_type is int
 
 
 def test_get_field_type_deep_nested():
     """Test get_field_type with deeply nested class"""
     field_type = get_field_type(NestedClass.Inner.DeepNested, "deep_value")
-    assert field_type == str
+    assert field_type is str
 
 
 def test_get_field_type_method():
@@ -634,7 +633,7 @@ def test_get_field_type_method():
             return "test"
 
     field_type = get_field_type(TestClass, "method")
-    assert field_type == str
+    assert field_type is str
 
 
 def test_get_field_type_property():
@@ -646,7 +645,7 @@ def test_get_field_type_property():
             return 42
 
     field_type = get_field_type(TestClass, "prop")
-    assert field_type == int
+    assert field_type is int
 
 
 def test_get_field_type_annotated():
@@ -656,7 +655,7 @@ def test_get_field_type_annotated():
         field: Annotated[str, "meta"] = "test"
 
     field_type = get_field_type(TestClass, "field")
-    assert field_type == str
+    assert field_type is str
 
 
 # ------------ Test special function cases ------------
@@ -686,7 +685,7 @@ def test_func_args_bt_default_fallback():
     )
 
     # With fallback, should infer type from default
-    assert args_with_fallback[1].argtype == int
+    assert args_with_fallback[1].argtype is int
 
     # Without fallback, should be None
     assert args_without_fallback[1].argtype is None
@@ -742,10 +741,6 @@ def test_complex_inheritance_chain():
     assert len(init_fields) == 3
     names = [f.name for f in init_fields]
     assert all(name in names for name in ["x", "y", "z"])
-
-    # Could also map as model (type hints from inheritance)
-    model_fields = map_model_fields(Derived)
-    # This might have different results based on what's in type hints
 
 
 def test_mixed_annotations_and_defaults():

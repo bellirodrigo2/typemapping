@@ -18,9 +18,9 @@ __all__ = [
 
 
 from typemapping.typemapping import (NO_DEFAULT, VarTypeInfo, get_field_type,
-                                      get_func_args, get_return_type,
-                                      get_safe_type_hints, is_Annotated,
-                                      is_equal_type, map_dataclass_fields,
-                                      map_func_args, map_init_field,
-                                      map_model_fields, map_return_type,
-                                      safe_issubclass, unwrap_partial)
+                                     get_func_args, get_return_type,
+                                     get_safe_type_hints, is_Annotated,
+                                     is_equal_type, map_dataclass_fields,
+                                     map_func_args, map_init_field,
+                                     map_model_fields, map_return_type,
+                                     safe_issubclass, unwrap_partial)

@@ -5,26 +5,14 @@ from functools import lru_cache, partial
 from inspect import Parameter, signature
 
 from typing_extensions import Annotated as typing_extensions_Annotated
-from typing_extensions import (
-    Any,
-    Callable,
-    Dict,
-    List,
-    Optional,
-    Sequence,
-    Tuple,
-    Type,
-    TypeVar,
-    Union,
-    get_args,
-    get_origin,
-    get_type_hints,
-)
+from typing_extensions import (Any, Callable, Dict, List, Optional, Sequence,
+                               Tuple, Type, TypeVar, Union, get_args,
+                               get_origin, get_type_hints)
 
 try:
     from typing import Annotated as typing_Annotated
 except ImportError:
-    typing_Annotated = None
+    typing_Annotated = None  # type: ignore
 
 T = TypeVar("T")
 
@@ -175,7 +163,7 @@ def get_safe_type_hints(
     """
     try:
         if inspect.isclass(obj):
-            cls = obj
+            cls: Optional[Any] = obj
         elif inspect.isfunction(obj) or inspect.ismethod(obj):
             # Handle nested classes and methods
             qualname_parts = obj.__qualname__.split(".")
@@ -260,7 +248,7 @@ def field_factory(
         else resolve_dataclass_default
     )
 
-    has_default, default = resolve_default(obj)
+    has_default, default = resolve_default(obj)  # type: ignore
 
     if hint is not inspect._empty and hint is not None:
         argtype = hint
@@ -309,8 +297,8 @@ def unwrap_partial(
     func: Callable[..., Any],
 ) -> Tuple[Callable[..., Any], List[Any], Dict[str, Any]]:
     """Recursively unwrap partial functions"""
-    partial_kwargs = {}
-    partial_args = []
+    partial_kwargs: Dict[Any, Any] = {}
+    partial_args: List[Any] = []
 
     # Handle nested partials
     while isinstance(func, partial):
@@ -455,7 +443,6 @@ def get_func_args(
     hints = get_safe_type_hints(original_func, localns)
 
     funcargs: List[VarTypeInfo] = []
-    param_names = list(sig.parameters.keys())
 
     # Skip parameters that are filled by partial args
     skip_count = len(partial_args)
