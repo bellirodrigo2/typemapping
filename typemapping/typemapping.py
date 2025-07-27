@@ -1,109 +1,77 @@
+"""
+Type mapping and introspection utilities for frameworks like FastAPI, SQLAlchemy, Pydantic.
+
+This module provides sophisticated type inspection capabilities for extracting type information
+from function arguments, class fields, and annotations. It supports:
+
+- Function argument mapping with type hints
+- Dataclass field inspection  
+- Class field mapping from type hints
+- Annotated type unwrapping and metadata extraction
+- Partial function handling
+- Safe type hint resolution with forward references
+
+Integrates with the advanced type checking system from typemapping.origins and typemapping.type_check.
+"""
+
 import inspect
 import sys
 from dataclasses import MISSING, Field, dataclass, fields
 from functools import lru_cache, partial
 from inspect import Parameter, signature
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Type, TypeVar, Union, get_args, get_origin, get_type_hints
 
-from typing_extensions import Annotated as typing_extensions_Annotated
-from typing_extensions import (Any, Callable, Dict, List, Optional, Sequence,
-                               Tuple, Type, TypeVar, Union, get_args,
-                               get_origin, get_type_hints)
-
-try:
-    from typing import Annotated as typing_Annotated
-except ImportError:
-    typing_Annotated = None  # type: ignore
+# Import our advanced type checking functions
+from .type_check import extended_isinstance, extended_issubclass, is_Annotated, is_equal_type
 
 T = TypeVar("T")
 
 
-def is_Annotated(bt: Optional[Type[Any]]) -> bool:
-    """Check if type is Annotated, handling None case"""
-    if bt is None:
-        return False
-    origin = get_origin(bt)
-    return origin in (typing_extensions_Annotated, typing_Annotated)
-
-
-def is_equal_type(t1: Type[Any], t2: Type[Any]) -> bool:
-    """Compare two types for equality, handling both basic and generic types"""
-    # Handle None cases
-    if t1 is None or t2 is None:
-        return t1 is t2
-
-    # Get origins and args
-    origin1, origin2 = get_origin(t1), get_origin(t2)
-    args1, args2 = get_args(t1), get_args(t2)
-
-    # If both have no origin (basic types like str, int), compare directly
-    if origin1 is None and origin2 is None:
-        return t1 is t2
-
-    # If one has origin and other doesn't, they're different
-    if (origin1 is None) != (origin2 is None):
-        return False
-
-    # Both have origins, compare origins and args
-    return origin1 == origin2 and args1 == args2
-
-
-def safe_issubclass(cls: Any, classinfo: Type[Any]) -> bool:
-    """Safe version of issubclass that handles edge cases"""
-    if cls is None:
-        return False
-
-    try:
-        # Handle Union types - check if ALL types in union are subclasses
-        # This is more restrictive but more logical
-        if get_origin(cls) is Union:
-            union_args = get_args(cls)
-            return all(safe_issubclass(arg, classinfo) for arg in union_args)
-
-        # Handle Generic types - get the origin class
-        origin_cls = get_origin(cls)
-        if origin_cls is not None:
-            cls = origin_cls
-
-        # Only call issubclass if cls is actually a class
-        if inspect.isclass(cls):
-            return issubclass(cls, classinfo)
-        return False
-    except (TypeError, AttributeError, RecursionError):
-        return False
-
-
 @dataclass
 class VarTypeInfo:
+    """
+    Comprehensive type information for function arguments or class fields.
+    
+    This class encapsulates all type-related information including the original
+    annotation, resolved base type, default values, and metadata from Annotated types.
+    """
     name: str
-    argtype: Optional[Type[Any]]
-    basetype: Optional[Type[Any]]
+    argtype: Optional[Type[Any]]  # Original type annotation
+    basetype: Optional[Type[Any]]  # Resolved type (unwrapped from Annotated)
     default: Optional[Any]
     has_default: bool = False
-    extras: Optional[Tuple[Any, ...]] = None
+    extras: Optional[Tuple[Any, ...]] = None  # Metadata from Annotated[T, ...]
 
     @property
     def origin(self) -> Optional[Type[Any]]:
+        """Get the origin of the base type (e.g., list from List[int])."""
         return get_origin(self.basetype)
 
     @property
     def args(self) -> Tuple[Any, ...]:
+        """Get the type arguments (e.g., (int,) from List[int])."""
         return get_args(self.basetype) if self.basetype is not None else ()
 
     def isequal(self, arg: Any) -> bool:
-        """Check if this type info equals another type"""
+        """
+        Check if this type info equals another type using advanced type equality.
+        
+        Uses our enhanced is_equal_type for precise comparison.
+        """
         if arg is None or self.basetype is None:
             return arg == self.basetype
 
         if is_Annotated(arg):
             return self.isequal(get_args(arg)[0])
 
-        if get_origin(arg) is None:
-            return self.basetype == arg
-
-        return self.origin == get_origin(arg) and self.args == get_args(arg)
+        return is_equal_type(self.basetype, arg)
 
     def istype(self, tgttype: type) -> bool:
-        """Check if this type info is compatible with target type"""
+        """
+        Check if this type info is compatible with target type.
+        
+        Uses our advanced type checking system for sophisticated compatibility.
+        """
         if tgttype is None or self.basetype is None:
             return False
 
@@ -111,31 +79,67 @@ class VarTypeInfo:
             return self.isequal(get_args(tgttype)[0])
 
         try:
-            return self.isequal(tgttype) or safe_issubclass(self.basetype, tgttype)
+            # Use our advanced extended_issubclass for better type relationships
+            return self.isequal(tgttype) or extended_issubclass(self.basetype, tgttype)
+        except (TypeError, AttributeError):
+            return False
+
+    def isinstance_check(self, obj: Any) -> bool:
+        """
+        Check if object is instance of this type using extended isinstance.
+        
+        This provides runtime type validation with support for generics.
+        """
+        if self.basetype is None:
+            return obj is None
+        
+        try:
+            return extended_isinstance(obj, self.basetype)
         except (TypeError, AttributeError):
             return False
 
     def getinstance(self, tgttype: Type[T], default: bool = True) -> Optional[T]:
-        """Get instance of target type from extras or default"""
+        """
+        Get instance of target type from extras or default.
+        
+        This is useful for extracting framework-specific objects from Annotated metadata.
+        """
         if not isinstance(tgttype, type):
             return None
 
+        # Search in Annotated metadata
         if self.extras is not None:
             founds = [e for e in self.extras if isinstance(e, tgttype)]
             if len(founds) > 0:
                 return founds[0]
 
+        # Check default value
         if default and self.has_default and isinstance(self.default, tgttype):
             return self.default
 
         return None
 
     def hasinstance(self, tgttype: type, default: bool = True) -> bool:
-        """Check if has instance of target type"""
+        """Check if has instance of target type."""
         return self.getinstance(tgttype, default) is not None
+
+    def get_all_instances(self, tgttype: Type[T]) -> List[T]:
+        """Get all instances of target type from extras and default."""
+        instances = []
+        
+        # From extras
+        if self.extras is not None:
+            instances.extend([e for e in self.extras if isinstance(e, tgttype)])
+        
+        # From default
+        if self.has_default and isinstance(self.default, tgttype):
+            instances.append(self.default)
+        
+        return instances
 
 
 class _NoDefault:
+    """Sentinel object for parameters with no default value."""
     def __repr__(self) -> str:
         return "NO_DEFAULT"
 
@@ -148,7 +152,7 @@ NO_DEFAULT = _NoDefault()
 
 @lru_cache(maxsize=256)
 def _get_module_globals(module_name: str) -> Dict[str, Any]:
-    """Get module globals with caching"""
+    """Get module globals with caching for type hint resolution."""
     try:
         return vars(sys.modules[module_name]).copy()
     except KeyError:
@@ -159,7 +163,13 @@ def get_safe_type_hints(
     obj: Any, localns: Optional[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
     """
-    Get type hints safely, handling ForwardRef and Self references
+    Get type hints safely, handling ForwardRef and Self references.
+    
+    This function provides robust type hint extraction that handles:
+    - Forward references (strings)
+    - Self references in class methods
+    - Nested classes
+    - Module-level type resolution
     """
     try:
         if inspect.isclass(obj):
@@ -211,14 +221,14 @@ def get_safe_type_hints(
 
 
 def resolve_class_default(param: Parameter) -> Tuple[bool, Any]:
-    """Resolve default value for class parameter"""
+    """Resolve default value for class parameter."""
     if param.default is not Parameter.empty:
         return True, param.default
     return False, NO_DEFAULT
 
 
 def resolve_dataclass_default(field: Field[Any]) -> Tuple[bool, Any]:
-    """Resolve default value for dataclass field"""
+    """Resolve default value for dataclass field."""
     if field.default is not MISSING:
         return True, field.default
     elif field.default_factory is not MISSING:
@@ -241,7 +251,12 @@ def field_factory(
     hint: Any,
     bt_default_fallback: bool = True,
 ) -> VarTypeInfo:
-    """Create VarTypeInfo from field or parameter"""
+    """
+    Create VarTypeInfo from field or parameter.
+    
+    This is the core function that extracts comprehensive type information
+    from function parameters or dataclass fields.
+    """
     resolve_default = (
         resolve_class_default
         if isinstance(obj, Parameter)
@@ -273,7 +288,11 @@ def make_funcarg(
     default: Any = None,
     has_default: bool = False,
 ) -> VarTypeInfo:
-    """Create VarTypeInfo with proper handling of Annotated types"""
+    """
+    Create VarTypeInfo with proper handling of Annotated types.
+    
+    This function unwraps Annotated types and extracts metadata for framework use.
+    """
     basetype = tgttype
     extras = None
 
@@ -296,7 +315,11 @@ def make_funcarg(
 def unwrap_partial(
     func: Callable[..., Any],
 ) -> Tuple[Callable[..., Any], List[Any], Dict[str, Any]]:
-    """Recursively unwrap partial functions"""
+    """
+    Recursively unwrap partial functions.
+    
+    This handles nested partials correctly, preserving argument order and precedence.
+    """
     partial_kwargs: Dict[Any, Any] = {}
     partial_args: List[Any] = []
 
@@ -316,15 +339,18 @@ def unwrap_partial(
     return func, partial_args, partial_kwargs
 
 
-# map_class_fields function removed - users should choose specific mapping strategy
-
+# ===== FIELD MAPPING STRATEGIES =====
 
 def map_init_field(
     cls: type,
     bt_default_fallback: bool = True,
     localns: Optional[Dict[str, Any]] = None,
 ) -> List[VarTypeInfo]:
-    """Map fields from __init__ method"""
+    """
+    Map fields from __init__ method.
+    
+    This strategy extracts type information from constructor parameters.
+    """
     init_method = getattr(cls, "__init__")
 
     # If it's object.__init__, return empty list since it has no useful parameters
@@ -345,7 +371,11 @@ def map_dataclass_fields(
     bt_default_fallback: bool = True,
     localns: Optional[Dict[str, Any]] = None,
 ) -> List[VarTypeInfo]:
-    """Map dataclass fields"""
+    """
+    Map dataclass fields.
+    
+    This strategy extracts type information from dataclass field definitions.
+    """
     hints = get_safe_type_hints(cls, localns)
     items = [(field.name, field) for field in fields(cls)]
 
@@ -359,7 +389,12 @@ def map_model_fields(
     bt_default_fallback: bool = True,
     localns: Optional[Dict[str, Any]] = None,
 ) -> List[VarTypeInfo]:
-    """Map model fields from type hints and class attributes"""
+    """
+    Map model fields from type hints and class attributes.
+    
+    This strategy works with any class that has type hints, useful for
+    model classes, configuration classes, etc.
+    """
     hints = get_safe_type_hints(cls, localns)
     items = []
 
@@ -395,10 +430,12 @@ def map_model_fields(
     ]
 
 
+# ===== FUNCTION MAPPING UTILITIES =====
+
 def map_return_type(
     func: Callable[..., Any], localns: Optional[Dict[str, Any]] = None
 ) -> VarTypeInfo:
-    """Map function return type"""
+    """Map function return type."""
     sig = inspect.signature(func)
     hints = get_safe_type_hints(func, localns)
     raw_return_type = hints.get("return", sig.return_annotation)
@@ -414,7 +451,7 @@ def map_return_type(
 
 
 def get_return_type(func: Callable[..., Any]) -> Optional[Type[Any]]:
-    """Get function return type"""
+    """Get function return type."""
     returntype = map_return_type(func)
     return returntype.basetype
 
@@ -424,7 +461,7 @@ def map_func_args(
     localns: Optional[Dict[str, Any]] = None,
     bt_default_fallback: bool = True,
 ) -> Tuple[Sequence[VarTypeInfo], VarTypeInfo]:
-    """Map function arguments and return type"""
+    """Map function arguments and return type."""
     funcargs = get_func_args(func, localns, bt_default_fallback)
     return_type = map_return_type(func, localns)
     return funcargs, return_type
@@ -435,7 +472,12 @@ def get_func_args(
     localns: Optional[Dict[str, Any]] = None,
     bt_default_fallback: bool = True,
 ) -> Sequence[VarTypeInfo]:
-    """Get function arguments as VarTypeInfo list"""
+    """
+    Get function arguments as VarTypeInfo list.
+    
+    This function handles partial functions, type hints, and default values
+    to provide comprehensive argument information.
+    """
     # Handle partial functions
     original_func, partial_args, partial_kwargs = unwrap_partial(func)
 
@@ -470,12 +512,22 @@ def get_func_args(
     return funcargs
 
 
+# ===== FIELD TYPE UTILITIES =====
+
 def get_field_type_(
     tgt: Type[Any],
     fieldname: str,
     localns: Optional[Dict[str, Any]] = None,
 ) -> Optional[Type[Any]]:
-    """Get field type from various sources"""
+    """
+    Get field type from various sources.
+    
+    This function tries multiple strategies to find type information:
+    1. Class-level type hints
+    2. __init__ method type hints  
+    3. Property return type hints
+    4. Method return type hints
+    """
     # Try class-level type hints first
     try:
         cls_th = get_safe_type_hints(tgt, localns)
@@ -530,10 +582,51 @@ def get_field_type(
     fieldname: str,
     localns: Optional[Dict[str, Any]] = None,
 ) -> Optional[Type[Any]]:
-    """Get field type, unwrapping Annotated if present"""
+    """Get field type, unwrapping Annotated if present."""
     btype = get_field_type_(tgt, fieldname, localns)
     if btype is not None and is_Annotated(btype):
         args = get_args(btype)
         if args:
             btype = args[0]
     return btype
+
+
+# ===== CONVENIENCE FUNCTIONS FOR FRAMEWORK INTEGRATION =====
+
+def extract_metadata(var_info: VarTypeInfo, target_type: Type[T]) -> List[T]:
+    """
+    Extract all metadata instances of target type from VarTypeInfo.
+    
+    Useful for framework-specific annotations like FastAPI dependencies,
+    SQLAlchemy column definitions, etc.
+    """
+    return var_info.get_all_instances(target_type)
+
+
+def has_metadata(var_info: VarTypeInfo, target_type: Type[Any]) -> bool:
+    """Check if VarTypeInfo has metadata of specific type."""
+    return var_info.hasinstance(target_type)
+
+
+def get_first_metadata(var_info: VarTypeInfo, target_type: Type[T]) -> Optional[T]:
+    """Get first metadata instance of target type."""
+    return var_info.getinstance(target_type)
+
+
+def filter_fields_by_metadata(
+    fields: List[VarTypeInfo], 
+    target_type: Type[Any]
+) -> List[VarTypeInfo]:
+    """Filter fields that have specific metadata type."""
+    return [field for field in fields if has_metadata(field, target_type)]
+
+
+def group_fields_by_type(fields: List[VarTypeInfo]) -> Dict[Type[Any], List[VarTypeInfo]]:
+    """Group fields by their base type."""
+    groups: Dict[Type[Any], List[VarTypeInfo]] = {}
+    for field in fields:
+        if field.basetype is not None:
+            if field.basetype not in groups:
+                groups[field.basetype] = []
+            groups[field.basetype].append(field)
+    return groups

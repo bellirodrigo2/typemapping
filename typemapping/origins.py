@@ -42,15 +42,9 @@ except ImportError:
 
 try:
     # Python 3.8+ compatibility
-    from collections.abc import AsyncGenerator as AbcAsyncGenerator
-    from collections.abc import AsyncIterator as AbcAsyncIterator
-    from collections.abc import Awaitable as AbcAwaitable
     from collections.abc import Callable as AbcCallable
     from collections.abc import Container as AbcContainer
-    from collections.abc import Coroutine as AbcCoroutine
-    from collections.abc import Generator as AbcGenerator
     from collections.abc import Iterable as AbcIterable
-    from collections.abc import Iterator as AbcIterator
     from collections.abc import Mapping as AbcMapping
     from collections.abc import MutableMapping as AbcMutableMapping
     from collections.abc import MutableSequence, MutableSet

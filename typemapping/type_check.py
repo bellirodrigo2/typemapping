@@ -574,7 +574,7 @@ def _validate_generic_args(obj: Any, args: tuple, origin: Type[Any]) -> bool:
         # Handle different container types
         if origin in (list, tuple) or is_equivalent_origin(origin, list):
             return _validate_sequence_args(obj, args)
-        elif origin == dict or is_equivalent_origin(origin, dict):
+        elif origin is dict or is_equivalent_origin(origin, dict):
             return _validate_mapping_args(obj, args)
         elif origin in (set, frozenset) or is_equivalent_origin(origin, set):
             return _validate_set_args(obj, args)

@@ -9,10 +9,9 @@ from typing import (Callable, Container, Counter, Dict, Iterable, List,
 import pytest
 
 # Import the functions to test
-from typemapping.origins import (are_args_compatible, debug_type_info,
-                                 get_compatibility_chain,
-                                 get_equivalent_origin, is_equivalent_origin,
-                                 is_fully_compatible)
+from typemapping import (are_args_compatible, debug_type_info,
+                         get_compatibility_chain, get_equivalent_origin,
+                         is_equivalent_origin, is_fully_compatible)
 
 
 class TestIsEquivalentOrigin:
@@ -65,30 +64,30 @@ class TestGetEquivalentOrigin:
 
     def test_typing_to_concrete(self):
         """Test typing types return concrete equivalents."""
-        assert get_equivalent_origin(List[int]) == list
-        assert get_equivalent_origin(Dict[str, int]) == dict
-        assert get_equivalent_origin(Set[str]) == set
-        assert get_equivalent_origin(Tuple[int, str]) == tuple
+        assert get_equivalent_origin(List[int]) is list
+        assert get_equivalent_origin(Dict[str, int]) is dict
+        assert get_equivalent_origin(Set[str]) is set
+        assert get_equivalent_origin(Tuple[int, str]) is tuple
 
     def test_abstract_to_concrete(self):
         """Test abstract types return concrete equivalents."""
-        assert get_equivalent_origin(Sequence[int]) == list
-        assert get_equivalent_origin(Mapping[str, int]) == dict
-        assert get_equivalent_origin(Iterable[str]) == list
+        assert get_equivalent_origin(Sequence[int]) is list
+        assert get_equivalent_origin(Mapping[str, int]) is dict
+        assert get_equivalent_origin(Iterable[str]) is list
 
     def test_concrete_types(self):
         """Test concrete types return themselves."""
-        assert get_equivalent_origin(list) == list
-        assert get_equivalent_origin(dict) == dict
+        assert get_equivalent_origin(list) is list
+        assert get_equivalent_origin(dict) is dict
         assert (
-            get_equivalent_origin(str) == str
+            get_equivalent_origin(str) is str
         )  # str returns itself (not in _EQUIV_ORIGIN)
 
     def test_unknown_types(self):
         """Test unknown types return themselves for concrete types, None for generics."""
-        assert get_equivalent_origin(int) == int  # concrete type
-        assert get_equivalent_origin(str) == str  # concrete type
-        assert get_equivalent_origin(float) == float  # concrete type
+        assert get_equivalent_origin(int) is int  # concrete type
+        assert get_equivalent_origin(str) is str  # concrete type
+        assert get_equivalent_origin(float) is float  # concrete type
 
 
 class TestAreArgsCompatible:
@@ -170,15 +169,15 @@ class TestDebugTypeInfo:
         """Test debug info for generic types."""
         info = debug_type_info(List[int])
         assert info["type"] == List[int]
-        assert info["origin"] == list
+        assert info["origin"] is list
         assert info["args"] == (int,)
         assert info["is_generic"] is True
-        assert info["equivalent_origin"] == list
+        assert info["equivalent_origin"] is list
 
     def test_concrete_type_info(self):
         """Test debug info for concrete types."""
         info = debug_type_info(list)
-        assert info["type"] == list
+        assert info["type"] is list
         assert info["origin"] is None
         assert info["args"] == ()
         assert info["is_generic"] is False

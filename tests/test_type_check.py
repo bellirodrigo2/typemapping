@@ -5,7 +5,7 @@ from typing import (Any, Dict, Iterable, List, Mapping, Optional, Sequence,
 import pytest
 
 # Import functions to test
-from typemapping.type_check import extended_isinstance, extended_issubclass
+from typemapping import extended_isinstance, extended_issubclass
 
 
 # Test classes for inheritance
