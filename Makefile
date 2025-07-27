@@ -14,7 +14,7 @@ test:
 
 test_coverage:
 	@echo "Running tests with coverage..."
-	pytest -p no:warnings --cov=typemapping ./tests
+	pytest --cov=typemapping ./tests
 
 test_cov_html:
 	@echo "Running tests with html report coverage..."
