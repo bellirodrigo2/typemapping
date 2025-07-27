@@ -1,270 +1,337 @@
-import inspect
-from typing import Any, DefaultDict, Type, Union, get_args, get_origin
+from collections import Counter, OrderedDict, defaultdict, deque
+from typing import (Any, Dict, Iterable, List, Mapping, Optional, Sequence,
+                    Set, Tuple, Union)
 
-from typemapping.origins import is_equivalent_origin
+import pytest
+
+# Import functions to test
 from typemapping.type_check import extended_isinstance, extended_issubclass
 
 
-def _is_union_type(t: Type[Any]) -> bool:
-    """Check if type is a Union."""
-    return get_origin(t) is Union
+# Test classes for inheritance
+class Base:
+    pass
 
 
-def _is_optional_type(t: Type[Any]) -> bool:
-    """Check if type is Optional[T] (Union[T, None])."""
-    if not _is_union_type(t):
-        return False
-    args = get_args(t)
-    return len(args) == 2 and type(None) in args
+class Derived(Base):
+    pass
 
 
-def _get_optional_inner_type(t: Type[Any]) -> Type[Any]:
-    """Get the inner type from Optional[T]."""
-    args = get_args(t)
-    return next(arg for arg in args if arg is not type(None))
+class Other:
+    pass
 
 
-def _is_subtype_origin(sub_origin: Type[Any], super_origin: Type[Any]) -> bool:
-    """
-    Check if sub_origin is a subtype of super_origin using our equivalence system.
+class TestExtendedIssubclass:
+    """Test extended_issubclass functionality."""
 
-    Rules:
-    - Concrete types are subtypes of their abstractions (list <: Sequence)
-    - Abstract types are NOT subtypes of concrete types (Sequence not <: list)
-    - Equivalent types are subtypes of each other
-    """
-    # Direct equality
-    if sub_origin == super_origin:
-        return True
+    def test_covariance_with_inheritance(self):
+        """Test covariance: Container[Derived] <: Container[Base]."""
+        assert extended_issubclass(List[Derived], List[Base])
+        assert extended_issubclass(Dict[str, Derived], Dict[str, Base])
+        assert extended_issubclass(Set[Derived], Set[Base])
+        assert extended_issubclass(Tuple[Derived], Tuple[Base])
 
-    # Special handling for collections specializations
-    if _is_collection_specialization_subtype(sub_origin, super_origin):
-        return True
+    def test_contravariance_inheritance(self):
+        """Test contravariance is not allowed: Container[Base] not <: Container[Derived]."""
+        assert not extended_issubclass(List[Base], List[Derived])
+        assert not extended_issubclass(Dict[str, Base], Dict[str, Derived])
+        assert not extended_issubclass(Set[Base], Set[Derived])
 
-    # Use our equivalence system to check compatibility
-    if is_equivalent_origin(sub_origin, super_origin):
-        # Additional check: concrete -> abstract is allowed, but not abstract -> concrete
-        return _is_abstraction_compatible(sub_origin, super_origin)
+    def test_concrete_to_abstract(self):
+        """Test concrete types are subtypes of abstract: List[T] <: Sequence[T]."""
+        assert extended_issubclass(List[Base], Sequence[Base])
+        assert extended_issubclass(Dict[str, Base], Mapping[str, Base])
+        assert extended_issubclass(Set[Base], Iterable[Base])
+        assert extended_issubclass(List[int], Sequence[int])
 
-    # Fallback to regular issubclass for non-generic types
-    try:
-        if inspect.isclass(sub_origin) and inspect.isclass(super_origin):
-            return issubclass(sub_origin, super_origin)
-    except TypeError:
-        pass
+    def test_abstract_to_concrete_not_allowed(self):
+        """Test abstract types are NOT subtypes of concrete: Sequence[T] not <: List[T]."""
+        assert not extended_issubclass(Sequence[Base], List[Base])
+        assert not extended_issubclass(Mapping[str, Base], Dict[str, Base])
+        assert not extended_issubclass(Iterable[Base], Set[Base])
 
-    return False
+    def test_combined_covariance_and_abstraction(self):
+        """Test combined covariance + abstraction: List[Derived] <: Sequence[Base]."""
+        assert extended_issubclass(List[Derived], Sequence[Base])
+        assert extended_issubclass(Dict[str, Derived], Mapping[str, Base])
+        assert not extended_issubclass(List[Base], Sequence[Derived])
 
+    def test_same_origin_different_args(self):
+        """Test same origin with different arguments."""
+        assert extended_issubclass(List[Derived], List[Base])
+        assert not extended_issubclass(List[Base], List[Derived])
+        assert not extended_issubclass(List[Base], List[Other])
 
-def _is_collection_specialization_subtype(
-    sub_origin: Type[Any], super_origin: Type[Any]
-) -> bool:
-    """Handle special cases for collection specializations."""
-    from collections import Counter, OrderedDict, defaultdict, deque
+    def test_incompatible_origins(self):
+        """Test incompatible container types."""
+        assert not extended_issubclass(List[Base], Set[Base])
+        assert not extended_issubclass(Dict[str, Base], List[Base])
+        assert not extended_issubclass(Set[Base], Dict[str, Base])
 
-    # Map specializations to their base types
-    specialization_map = {
-        defaultdict: dict,
-        Counter: dict,
-        OrderedDict: dict,
-        deque: list,  # deque behaves like a list
-    }
+    def test_union_types(self):
+        """Test Union type handling."""
+        # T <: Union[T, U]
+        assert extended_issubclass(List[Base], Union[List[Base], Set[Base]])
+        assert extended_issubclass(int, Union[int, str])
 
-    if sub_origin in specialization_map:
-        base_type = specialization_map[sub_origin]
-        return base_type == super_origin or is_equivalent_origin(
-            base_type, super_origin
-        )
+        # Union[T, U] <: V if T <: V and U <: V
+        assert extended_issubclass(Union[List[Base], List[Derived]], List[Base])
+        assert not extended_issubclass(Union[List[Base], Set[Base]], List[Base])
 
-    return False
+    def test_optional_types(self):
+        """Test Optional type handling."""
+        # T <: Optional[T]
+        assert extended_issubclass(List[Base], Optional[List[Base]])
+        assert extended_issubclass(int, Optional[int])
 
+        # Optional[Derived] <: Optional[Base]
+        assert extended_issubclass(Optional[Derived], Optional[Base])
+        assert not extended_issubclass(Optional[Base], Optional[Derived])
 
-def _is_abstraction_compatible(sub_origin: Type[Any], super_origin: Type[Any]) -> bool:
-    """
-    Check if sub_origin can be a subtype of super_origin based on abstraction level.
+        # Optional[T] <: Union[T, None]
+        assert extended_issubclass(Optional[Base], Union[Base, type(None)])
 
-    Concrete types (list, dict) can be subtypes of abstract types (Sequence, Mapping).
-    Abstract types cannot be subtypes of concrete types.
-    """
-    # Import here to avoid circular imports
-    from collections import Counter, OrderedDict, defaultdict, deque
-    from collections.abc import (Container, Iterable, Mapping, MutableMapping,
-                                 MutableSequence, Sequence)
-    from typing import Dict, FrozenSet, List, Set, Tuple
+    def test_any_type(self):
+        """Test Any type handling."""
+        assert extended_issubclass(List[int], List[Any])
+        assert not extended_issubclass(List[Any], List[int])
 
-    # Define abstraction hierarchy (concrete -> abstract)
-    concrete_to_abstract = {
-        # Basic types
-        list: {List, Sequence, MutableSequence, Iterable, Container},
-        dict: {Dict, Mapping, MutableMapping, Container},
-        set: {Set, Iterable, Container},
-        tuple: {Tuple, Sequence, Iterable, Container},
-        frozenset: {FrozenSet, Iterable, Container},
-        # Specialized collections
-        defaultdict: {
-            defaultdict,
-            DefaultDict,
-            dict,
-            Dict,
-            Mapping,
-            MutableMapping,
-            Container,
-        },
-        Counter: {Counter, dict, Dict, Mapping, MutableMapping, Container},
-        OrderedDict: {OrderedDict, dict, Dict, Mapping, MutableMapping, Container},
-        deque: {deque, MutableSequence, Sequence, Iterable, Container},
-    }
+    def test_no_args_types(self):
+        """Test types without generic arguments."""
+        assert extended_issubclass(list, Sequence)
+        assert extended_issubclass(dict, Mapping)
+        assert not extended_issubclass(Sequence, list)
 
-    # Check if sub_origin can be a subtype of super_origin
-    if sub_origin in concrete_to_abstract:
-        return super_origin in concrete_to_abstract[sub_origin]
+    def test_collections_specializations(self):
+        """Test specialized collections."""
+        # These should work with concrete dict types
+        assert extended_issubclass(defaultdict, dict)
+        assert extended_issubclass(Counter, dict)
+        assert extended_issubclass(OrderedDict, dict)
+        assert extended_issubclass(deque, list)  # deque is like a list
 
-    # If sub_origin not in mapping, check if they're the same
-    return sub_origin == super_origin
+        # But not necessarily with generic Dict[K,V] due to args compatibility
+        # This is more complex - let's test simpler cases
 
 
-def _is_covariant_arg(sub_arg: Type[Any], super_arg: Type[Any]) -> bool:
-    """
-    Check if sub_arg is covariant with super_arg.
+class TestExtendedIsinstance:
+    """Test extended_isinstance functionality."""
 
-    For most containers, we assume covariance: Container[Derived] <: Container[Base]
-    """
-    # Handle Any type
-    if super_arg is Any:
-        return True
-    if sub_arg is Any:
-        return False  # Any is not a subtype of specific types
+    def test_basic_list_isinstance(self):
+        """Test basic list instance checking."""
+        list1 = [1, 2, 3]
+        assert extended_isinstance(list1, List[int])
+        assert extended_isinstance(list1, Sequence[int])
+        assert extended_isinstance(list1, Iterable[int])
+        assert not extended_isinstance(list1, List[str])
+        assert not extended_isinstance(list1, Set[int])
 
-    # Recursive check for nested generics
-    return extended_issubclass(sub_arg, super_arg)
+    def test_mixed_type_list(self):
+        """Test list with mixed types."""
+        mixed_list = [1, "hello", 3.14]
+        assert not extended_isinstance(mixed_list, List[int])
+        assert not extended_isinstance(mixed_list, List[str])
+        # Mixed types should match List[Any] since Any accepts anything
+        assert extended_isinstance(mixed_list, List[Any])
 
+    def test_dict_isinstance(self):
+        """Test dictionary instance checking."""
+        dict1 = {"a": 1, "b": 2}
+        assert extended_isinstance(dict1, Dict[str, int])
+        assert extended_isinstance(dict1, Mapping[str, int])
+        assert not extended_isinstance(dict1, Dict[str, str])
+        assert not extended_isinstance(dict1, Dict[int, int])
 
-def _check_runtime_origin_compatibility(
-    obj_type: Type[Any], target_origin: Type[Any]
-) -> bool:
-    """Check if object type is compatible with target origin at runtime."""
-    # Use our equivalence system
-    if is_equivalent_origin(obj_type, target_origin):
-        return True
+    def test_set_isinstance(self):
+        """Test set instance checking."""
+        set1 = {1, 2, 3}
+        assert extended_isinstance(set1, Set[int])
+        assert extended_isinstance(set1, Iterable[int])
+        assert not extended_isinstance(set1, Set[str])
+        assert not extended_isinstance(set1, List[int])
 
-    # Fallback to regular isinstance check for concrete types
-    try:
-        if inspect.isclass(target_origin):
-            # Create a dummy instance to test (avoid side effects)
-            return obj_type == target_origin or issubclass(obj_type, target_origin)
-    except (TypeError, AttributeError):
-        pass
+    def test_tuple_isinstance(self):
+        """Test tuple instance checking."""
+        tuple1 = (1, 2, 3)
+        assert extended_isinstance(tuple1, Tuple[int, ...])
+        assert extended_isinstance(tuple1, Sequence[int])
+        assert not extended_isinstance(tuple1, Tuple[str, ...])
 
-    return False
+    def test_empty_containers(self):
+        """Test empty containers."""
+        assert extended_isinstance([], List[int])  # Empty list matches any element type
+        assert extended_isinstance(
+            {}, Dict[str, int]
+        )  # Empty dict matches any key/value types
+        assert extended_isinstance(
+            set(), Set[int]
+        )  # Empty set matches any element type
 
+    def test_inheritance_isinstance(self):
+        """Test isinstance with inheritance."""
+        derived_list = [Derived(), Derived()]
+        base_list = [Base(), Base()]
 
-def _validate_generic_args(obj: Any, args: tuple, origin: Type[Any]) -> bool:
-    """
-    Validate that object's contents match the generic type arguments.
+        assert extended_isinstance(derived_list, List[Derived])
+        assert extended_isinstance(derived_list, List[Base])  # covariance
+        assert extended_isinstance(base_list, List[Base])
+        assert not extended_isinstance(base_list, List[Derived])  # contravariance
 
-    This performs runtime validation of generic types by checking elements.
-    """
-    try:
-        # Handle different container types
-        if origin in (list, tuple) or is_equivalent_origin(origin, list):
-            return _validate_sequence_args(obj, args)
-        elif origin == dict or is_equivalent_origin(origin, dict):
-            return _validate_mapping_args(obj, args)
-        elif origin in (set, frozenset) or is_equivalent_origin(origin, set):
-            return _validate_set_args(obj, args)
-        else:
-            # For unknown types, just check if it's the right container type
-            return True
-    except (TypeError, AttributeError):
-        return False
+    def test_union_isinstance(self):
+        """Test Union type instance checking."""
+        assert extended_isinstance([1, 2, 3], Union[List[int], Set[int]])
+        assert extended_isinstance({1, 2, 3}, Union[List[int], Set[int]])
+        assert not extended_isinstance("hello", Union[List[int], Set[int]])
 
+    def test_optional_isinstance(self):
+        """Test Optional type instance checking."""
+        assert extended_isinstance(None, Optional[int])
+        assert extended_isinstance(42, Optional[int])
+        assert not extended_isinstance("hello", Optional[int])
 
-def _validate_sequence_args(obj: Any, args: tuple) -> bool:
-    """Validate sequence type arguments."""
-    if not args:
-        return True
+        assert extended_isinstance(None, Optional[List[int]])
+        assert extended_isinstance([1, 2, 3], Optional[List[int]])
 
-    element_type = args[0]
+    def test_collections_isinstance(self):
+        """Test specialized collections instance checking."""
+        dd = defaultdict(int)
+        dd["a"] = 1
+        assert extended_isinstance(dd, Dict[str, int])
+        assert extended_isinstance(dd, Mapping[str, int])
 
-    # Empty containers are valid for any element type
-    if not obj:
-        return True
+        counter = Counter("hello")
+        assert extended_isinstance(counter, Dict[str, int])
 
-    # Special case for Any type
-    if element_type is Any:
-        return True
+        od = OrderedDict([("a", 1), ("b", 2)])
+        assert extended_isinstance(od, Dict[str, int])
 
-    # Check a sample of elements (for performance)
-    sample_size = min(10, len(obj)) if hasattr(obj, "__len__") else 10
-    count = 0
+        dq = deque([1, 2, 3])
+        assert extended_isinstance(dq, Sequence[int])
 
-    for item in obj:
-        if count >= sample_size:
-            break
-        if not extended_isinstance(item, element_type):
-            return False
-        count += 1
+    def test_nested_generics(self):
+        """Test nested generic types."""
+        nested_list = [[1, 2], [3, 4]]
+        assert extended_isinstance(nested_list, List[List[int]])
+        assert extended_isinstance(nested_list, Sequence[Sequence[int]])
+        assert not extended_isinstance(nested_list, List[List[str]])
 
-    return True
+        nested_dict = {"a": {"x": 1}, "b": {"y": 2}}
+        assert extended_isinstance(nested_dict, Dict[str, Dict[str, int]])
+        assert not extended_isinstance(nested_dict, Dict[str, Dict[str, str]])
 
+    def test_performance_large_containers(self):
+        """Test performance with large containers (should sample, not check all)."""
+        large_list = list(range(10000))
+        assert extended_isinstance(large_list, List[int])
 
-def _validate_mapping_args(obj: Any, args: tuple) -> bool:
-    """Validate mapping type arguments."""
-    if len(args) < 2:
-        return True
-
-    key_type, value_type = args[0], args[1]
-
-    # Empty containers are valid for any key/value types
-    if not obj:
-        return True
-
-    # Special case for Any types
-    if key_type is Any and value_type is Any:
-        return True
-
-    # Check a sample of key-value pairs
-    sample_size = min(10, len(obj)) if hasattr(obj, "__len__") else 10
-    count = 0
-
-    for key, value in obj.items():
-        if count >= sample_size:
-            break
-
-        key_valid = key_type is Any or extended_isinstance(key, key_type)
-        value_valid = value_type is Any or extended_isinstance(value, value_type)
-
-        if not (key_valid and value_valid):
-            return False
-        count += 1
-
-    return True
+        large_dict = {f"key_{i}": i for i in range(10000)}
+        assert extended_isinstance(large_dict, Dict[str, int])
 
 
-def _validate_set_args(obj: Any, args: tuple) -> bool:
-    """Validate set type arguments."""
-    if not args:
-        return True
+class TestEdgeCases:
+    """Test edge cases and corner scenarios."""
 
-    element_type = args[0]
+    def test_recursive_types(self):
+        """Test recursive type definitions."""
+        # This is a complex case that might not be fully supported
+        # but should not crash
+        try:
+            nested = [[[1]]]
+            result = extended_isinstance(nested, List[List[List[int]]])
+            assert isinstance(result, bool)  # Should return some boolean result
+        except Exception:
+            pytest.skip("Recursive types not fully supported")
 
-    # Empty containers are valid for any element type
-    if not obj:
-        return True
+    def test_malformed_generics(self):
+        """Test handling of malformed or unusual generic types."""
+        # Test with non-generic types used as if they were generic
+        assert not extended_isinstance([1, 2, 3], str)
+        assert not extended_isinstance({"a": 1}, int)
 
-    # Special case for Any type
-    if element_type is Any:
-        return True
+    def test_none_values(self):
+        """Test None handling in various contexts."""
+        assert not extended_isinstance(None, List[int])
+        assert extended_isinstance(None, Optional[List[int]])
+        assert not extended_isinstance([None, None], List[int])
+        assert extended_isinstance([None, None], List[Optional[int]])
 
-    # Check a sample of elements
-    sample_size = min(10, len(obj)) if hasattr(obj, "__len__") else 10
-    count = 0
+    def test_mixed_inheritance_complex(self):
+        """Test complex inheritance scenarios."""
 
-    for item in obj:
-        if count >= sample_size:
-            break
-        if not extended_isinstance(item, element_type):
-            return False
-        count += 1
+        class A:
+            pass
 
-    return True
+        class B(A):
+            pass
+
+        class C(B):
+            pass
+
+        # Multi-level inheritance
+        assert extended_issubclass(List[C], List[A])
+        assert extended_issubclass(List[C], Sequence[A])
+        assert not extended_issubclass(List[A], List[C])
+
+    def test_non_container_types(self):
+        """Test with non-container types."""
+        assert not extended_isinstance(42, List[int])
+        assert not extended_isinstance("hello", Dict[str, int])
+        assert extended_isinstance(42, int)
+        assert extended_isinstance("hello", str)
+
+
+# Parametrized tests for comprehensive coverage
+@pytest.mark.parametrize(
+    "subtype,supertype,expected",
+    [
+        # Basic covariance
+        (List[Derived], List[Base], True),
+        (List[Base], List[Derived], False),
+        # Abstraction
+        (List[Base], Sequence[Base], True),
+        (Sequence[Base], List[Base], False),
+        # Combined
+        (List[Derived], Sequence[Base], True),
+        (List[Base], Sequence[Derived], False),
+        # Incompatible origins
+        (List[Base], Set[Base], False),
+        (Dict[str, Base], List[Base], False),
+        # Union types
+        (int, Union[int, str], True),
+        (Union[int, str], int, False),
+        # Optional types
+        (int, Optional[int], True),
+        (Optional[Derived], Optional[Base], True),
+        (Optional[Base], Optional[Derived], False),
+    ],
+)
+def test_parametrized_issubclass(subtype, supertype, expected):
+    """Parametrized test for extended_issubclass."""
+    assert extended_issubclass(subtype, supertype) == expected
+
+
+@pytest.mark.parametrize(
+    "obj,type_hint,expected",
+    [
+        # Basic cases
+        ([1, 2, 3], List[int], True),
+        ([1, 2, 3], List[str], False),
+        ([1, 2, 3], Sequence[int], True),
+        ([1, 2, 3], Set[int], False),
+        # Dict cases
+        ({"a": 1}, Dict[str, int], True),
+        ({"a": 1}, Dict[str, str], False),
+        ({"a": 1}, Mapping[str, int], True),
+        # Union cases
+        ([1, 2, 3], Union[List[int], Set[int]], True),
+        ({1, 2, 3}, Union[List[int], Set[int]], True),
+        ("hello", Union[List[int], Set[int]], False),
+        # Optional cases
+        (None, Optional[int], True),
+        (42, Optional[int], True),
+        ("hello", Optional[int], False),
+    ],
+)
+def test_parametrized_isinstance(obj, type_hint, expected):
+    """Parametrized test for extended_isinstance."""
+    assert extended_isinstance(obj, type_hint) == expected

@@ -1,7 +1,44 @@
+"""
+Type compatibility and equivalence system.
+
+This module provides sophisticated type checking that handles:
+- Generic type equivalence (List[int] ~ Sequence[int])
+- Collection specializations (Counter ~ dict)
+- Union type compatibility
+- Cross-version type compatibility
+"""
+
+import sys
+# Basic collections
 from collections import defaultdict, deque
-from typing import (Any, Callable, ChainMap, Collection, Counter, DefaultDict,
-                    Deque, Dict, FrozenSet, Generator, List, Optional,
-                    OrderedDict, Set, Tuple, Type, Union, get_args, get_origin)
+from typing import (Any, Callable, Collection, Dict, FrozenSet, List, Optional,
+                    Set, Tuple, Type, Union, get_args, get_origin)
+
+# ===== RESOLVE TYPING vs COLLECTIONS CONFLICTS =====
+
+# Import concrete collections with aliases to avoid conflicts
+try:
+    from collections import ChainMap as ConcreteChainMap
+    from collections import Counter as ConcreteCounter
+    from collections import OrderedDict as ConcreteOrderedDict
+except ImportError:
+    ConcreteCounter = None
+    ConcreteOrderedDict = None
+    ConcreteChainMap = None
+
+# Import typing versions with aliases
+try:
+    from typing import ChainMap as TypingChainMap
+    from typing import Counter as TypingCounter
+    from typing import DefaultDict as TypingDefaultDict
+    from typing import OrderedDict as TypingOrderedDict
+except ImportError:
+    TypingCounter = None
+    TypingOrderedDict = None
+    TypingChainMap = None
+    TypingDefaultDict = None
+
+# ===== COLLECTIONS.ABC IMPORTS =====
 
 try:
     # Python 3.8+ compatibility
@@ -23,9 +60,7 @@ except ImportError:
     # Fallback for older Python versions
     from collections import Callable as AbcCallable
     from collections import Container as AbcContainer
-    from collections import Generator as AbcGenerator
     from collections import Iterable as AbcIterable
-    from collections import Iterator as AbcIterator
     from collections import Mapping as AbcMapping
     from collections import MutableMapping as AbcMutableMapping
     from collections import MutableSequence, MutableSet
@@ -35,7 +70,25 @@ except ImportError:
     # Mock missing types for older versions
     AbcCoroutine = AbcAwaitable = AbcAsyncIterator = AbcAsyncGenerator = type(None)
 
-import sys
+# ===== UNIFIED TYPE MAPPINGS =====
+
+# All Counter types (both concrete and typing versions) - ORDERED LIST
+ALL_COUNTER_TYPES = list(filter(None, [TypingCounter, ConcreteCounter]))  # typing first
+
+# All OrderedDict types - ORDERED LIST
+ALL_ORDEREDDICT_TYPES = list(
+    filter(None, [TypingOrderedDict, ConcreteOrderedDict])
+)  # typing first
+
+# All ChainMap types - ORDERED LIST
+ALL_CHAINMAP_TYPES = list(
+    filter(None, [TypingChainMap, ConcreteChainMap])
+)  # typing first
+
+# All DefaultDict types - ORDERED LIST (concrete first for defaultdict)
+ALL_DEFAULTDICT_TYPES = list(
+    filter(None, [defaultdict, TypingDefaultDict])
+)  # concrete first
 
 # Complete mapping of type equivalences
 _EQUIV_ORIGIN: Dict[Type[Any], Collection[Type[Any]]] = {
@@ -47,32 +100,10 @@ _EQUIV_ORIGIN: Dict[Type[Any], Collection[Type[Any]]] = {
     frozenset: {frozenset, FrozenSet, AbcSet, AbcIterable, AbcContainer},
     # Mappings
     dict: {dict, Dict, AbcMapping, AbcMutableMapping, AbcContainer},
-    # Dict specializations
-    defaultdict: {
-        defaultdict,
-        DefaultDict,
-        dict,
-        Dict,
-        AbcMapping,
-        AbcMutableMapping,
-        AbcContainer,
-    },
-    OrderedDict: {OrderedDict, dict, Dict, AbcMapping, AbcMutableMapping, AbcContainer},
-    Counter: {Counter, dict, Dict, AbcMapping, AbcMutableMapping, AbcContainer},
-    ChainMap: {ChainMap, AbcMapping, AbcMutableMapping, AbcContainer},
-    # Collections specializations
-    deque: {deque, Deque, MutableSequence, AbcSequence, AbcIterable, AbcContainer},
-    # Callables
-    type(lambda: None): {type(lambda: None), Callable, AbcCallable},
-    # Generators and Async (when available)
-    type(x for x in []): {
-        type(x for x in []),
-        Generator,
-        AbcGenerator,
-        AbcIterator,
-        AbcIterable,
-    },
-    # Add abstract types to enable deque -> Sequence compatibility
+    # Basic specializations
+    defaultdict: {defaultdict, dict, Dict, AbcMapping, AbcMutableMapping, AbcContainer},
+    deque: {deque, MutableSequence, AbcSequence, AbcIterable, AbcContainer},
+    # Abstract types enable compatibility
     AbcSequence: {
         deque,
         list,
@@ -82,18 +113,58 @@ _EQUIV_ORIGIN: Dict[Type[Any], Collection[Type[Any]]] = {
         AbcIterable,
         AbcContainer,
     },
+    # Callables
+    type(lambda: None): {type(lambda: None), Callable, AbcCallable},
 }
+
+# Add all Counter variants to mapping - DETERMINISTIC ORDER
+counter_equiv_set = set(ALL_COUNTER_TYPES) | {
+    dict,
+    Dict,
+    AbcMapping,
+    AbcMutableMapping,
+    AbcContainer,
+}
+for counter_type in ALL_COUNTER_TYPES:  # Iterates in deterministic order
+    _EQUIV_ORIGIN[counter_type] = counter_equiv_set
+
+# Add all OrderedDict variants to mapping - DETERMINISTIC ORDER
+ordereddict_equiv_set = set(ALL_ORDEREDDICT_TYPES) | {
+    dict,
+    Dict,
+    AbcMapping,
+    AbcMutableMapping,
+    AbcContainer,
+}
+for ordereddict_type in ALL_ORDEREDDICT_TYPES:  # Iterates in deterministic order
+    _EQUIV_ORIGIN[ordereddict_type] = ordereddict_equiv_set
+
+# Add all ChainMap variants to mapping - DETERMINISTIC ORDER
+chainmap_equiv_set = set(ALL_CHAINMAP_TYPES) | {
+    AbcMapping,
+    AbcMutableMapping,
+    AbcContainer,
+}
+for chainmap_type in ALL_CHAINMAP_TYPES:  # Iterates in deterministic order
+    _EQUIV_ORIGIN[chainmap_type] = chainmap_equiv_set
+
+# Add all DefaultDict variants to mapping - DETERMINISTIC ORDER
+defaultdict_equiv_set = set(ALL_DEFAULTDICT_TYPES) | {
+    dict,
+    Dict,
+    AbcMapping,
+    AbcMutableMapping,
+    AbcContainer,
+}
+for defaultdict_type in ALL_DEFAULTDICT_TYPES:  # Iterates in deterministic order
+    _EQUIV_ORIGIN[defaultdict_type] = defaultdict_equiv_set
 
 # Python 3.9+ support for built-in types as generics
 if sys.version_info >= (3, 9):
-    _EQUIV_ORIGIN.update(
-        {
-            list: _EQUIV_ORIGIN[list] | {list},  # list[int] in Python 3.9+
-            dict: _EQUIV_ORIGIN[dict] | {dict},  # dict[str, int] in Python 3.9+
-            set: _EQUIV_ORIGIN[set] | {set},  # set[int] in Python 3.9+
-            tuple: _EQUIV_ORIGIN[tuple] | {tuple},  # tuple[int, ...] in Python 3.9+
-        }
-    )
+    builtin_generic_types = {list, dict, set, tuple, frozenset}
+    for builtin_type in builtin_generic_types:
+        if builtin_type in _EQUIV_ORIGIN:
+            _EQUIV_ORIGIN[builtin_type] = _EQUIV_ORIGIN[builtin_type] | {builtin_type}
 
 
 def is_equivalent_origin(t1: Type[Any], t2: Type[Any]) -> bool:
@@ -111,7 +182,7 @@ def is_equivalent_origin(t1: Type[Any], t2: Type[Any]) -> bool:
         True
         >>> is_equivalent_origin(Dict[str, int], Mapping[str, int])
         True
-        >>> is_equivalent_origin(Set[int], Iterable[int])
+        >>> is_equivalent_origin(Counter[str], dict)  # Both typing and collections Counter
         True
     """
     o1, o2 = get_origin(t1) or t1, get_origin(t2) or t2
@@ -145,10 +216,24 @@ def get_equivalent_origin(t: Type[Any]) -> Optional[Type[Any]]:
     Examples:
         >>> get_equivalent_origin(List[int])
         <class 'list'>
-        >>> get_equivalent_origin(Sequence[str])
-        <class 'list'>  # more specific than Sequence
+        >>> get_equivalent_origin(Counter[str])  # Returns typing.Counter
+        typing.Counter
+        >>> get_equivalent_origin(defaultdict)  # Returns collections.defaultdict
+        <class 'collections.defaultdict'>
     """
     origin = get_origin(t) or t
+
+    # Special handling for collection types to ensure deterministic results
+    # Prefer typing versions for Counter, OrderedDict, ChainMap
+    # Prefer concrete version for defaultdict (more commonly used)
+    if origin in ALL_COUNTER_TYPES:
+        return ALL_COUNTER_TYPES[0]  # typing.Counter
+    if origin in ALL_ORDEREDDICT_TYPES:
+        return ALL_ORDEREDDICT_TYPES[0]  # typing.OrderedDict
+    if origin in ALL_CHAINMAP_TYPES:
+        return ALL_CHAINMAP_TYPES[0]  # typing.ChainMap
+    if origin in ALL_DEFAULTDICT_TYPES:
+        return ALL_DEFAULTDICT_TYPES[0]  # collections.defaultdict
 
     # Find the most specific type (first in hierarchy)
     for canonical, equiv_set in _EQUIV_ORIGIN.items():
@@ -237,10 +322,6 @@ def get_compatibility_chain(t: Type[Any]) -> List[Type[Any]]:
 
     Returns:
         Ordered list of compatible types
-
-    Examples:
-        >>> get_compatibility_chain(List[int])
-        [<class 'list'>, typing.Sequence, typing.Iterable, typing.Container]
     """
     origin = get_origin(t) or t
 
