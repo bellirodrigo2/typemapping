@@ -51,48 +51,15 @@ try:
     from collections.abc import Sequence as AbcSequence
     from collections.abc import Set as AbcSet
 except ImportError:
-    # Fallback for older Python versions - but these don't exist in collections anymore
-    # so we need to handle this properly
-    try:
-        from collections import Callable as AbcCallable  # type: ignore
-    except ImportError:
-        from typing import Callable as AbcCallable  # type: ignore
-
-    try:
-        from collections import Container as AbcContainer  # type: ignore
-    except ImportError:
-        from typing import Container as AbcContainer  # type: ignore
-
-    try:
-        from collections import Iterable as AbcIterable  # type: ignore
-    except ImportError:
-        from typing import Iterable as AbcIterable  # type: ignore
-
-    try:
-        from collections import Mapping as AbcMapping  # type: ignore
-    except ImportError:
-        from typing import Mapping as AbcMapping  # type: ignore
-
-    try:
-        from collections import \
-            MutableMapping as AbcMutableMapping  # type: ignore
-    except ImportError:
-        from typing import MutableMapping as AbcMutableMapping  # type: ignore
-
-    try:
-        from collections import Sequence as AbcSequence  # type: ignore
-    except ImportError:
-        from typing import Sequence as AbcSequence  # type: ignore
-
-    try:
-        from collections import Set as AbcSet  # type: ignore
-    except ImportError:
-        from typing import Set as AbcSet  # type: ignore
-
-    try:
-        from collections import MutableSequence, MutableSet  # type: ignore
-    except ImportError:
-        from typing import MutableSequence, MutableSet  # type: ignore
+    # Fallback - use typing versions directly
+    from typing import Callable as AbcCallable  # type: ignore
+    from typing import Container as AbcContainer  # type: ignore
+    from typing import Iterable as AbcIterable  # type: ignore
+    from typing import Mapping as AbcMapping  # type: ignore
+    from typing import MutableMapping as AbcMutableMapping  # type: ignore
+    from typing import Sequence as AbcSequence  # type: ignore
+    from typing import Set as AbcSet  # type: ignore
+    from typing import MutableSequence, MutableSet  # type: ignore
 
 # ===== UNIFIED TYPE MAPPINGS =====
 
@@ -118,7 +85,7 @@ ALL_DEFAULTDICT_TYPES = list(
 _EQUIV_ORIGIN: Dict[Type[Any], Collection[Type[Any]]] = {
     # Sequences
     list: {list, List, AbcSequence, MutableSequence, AbcIterable, AbcContainer},
-    tuple: {tuple, Tuple, AbcSequence, AbcIterable, AbcContainer},
+    tuple: {tuple, Tuple, AbcSequence, AbcIterable, AbcContainer}, #type:ignore
     # Sets
     set: {set, Set, AbcSet, MutableSet, AbcIterable, AbcContainer},
     frozenset: {frozenset, FrozenSet, AbcSet, AbcIterable, AbcContainer},
@@ -138,57 +105,45 @@ _EQUIV_ORIGIN: Dict[Type[Any], Collection[Type[Any]]] = {
         AbcContainer,
     },
     # Callables
-    type(lambda: None): {type(lambda: None), Callable, AbcCallable},
+    type(lambda: None): {type(lambda: None), Callable, AbcCallable}, #type:ignore
 }
 
 # Add all Counter variants to mapping - DETERMINISTIC ORDER
-counter_equiv_set = set(ALL_COUNTER_TYPES) | {
-    dict,
-    Dict,
-    AbcMapping,
-    AbcMutableMapping,
-    AbcContainer,
-}
+counter_equiv_set = {dict, Dict, AbcMapping, AbcMutableMapping, AbcContainer}
+for counter_type in ALL_COUNTER_TYPES:
+    counter_equiv_set.add(counter_type)  # type: ignore
 for counter_type in ALL_COUNTER_TYPES:  # Iterates in deterministic order
-    _EQUIV_ORIGIN[counter_type] = counter_equiv_set
+    _EQUIV_ORIGIN[counter_type] = counter_equiv_set.copy()
 
 # Add all OrderedDict variants to mapping - DETERMINISTIC ORDER
-ordereddict_equiv_set = set(ALL_ORDEREDDICT_TYPES) | {
-    dict,
-    Dict,
-    AbcMapping,
-    AbcMutableMapping,
-    AbcContainer,
-}
+ordereddict_equiv_set = {dict, Dict, AbcMapping, AbcMutableMapping, AbcContainer}
+for ordereddict_type in ALL_ORDEREDDICT_TYPES:
+    ordereddict_equiv_set.add(ordereddict_type)  # type: ignore
 for ordereddict_type in ALL_ORDEREDDICT_TYPES:  # Iterates in deterministic order
-    _EQUIV_ORIGIN[ordereddict_type] = ordereddict_equiv_set
+    _EQUIV_ORIGIN[ordereddict_type] = ordereddict_equiv_set.copy()
 
 # Add all ChainMap variants to mapping - DETERMINISTIC ORDER
-chainmap_equiv_set = set(ALL_CHAINMAP_TYPES) | {
-    AbcMapping,
-    AbcMutableMapping,
-    AbcContainer,
-}
+chainmap_equiv_set = {AbcMapping, AbcMutableMapping, AbcContainer}
+for chainmap_type in ALL_CHAINMAP_TYPES:
+    chainmap_equiv_set.add(chainmap_type)  # type: ignore
 for chainmap_type in ALL_CHAINMAP_TYPES:  # Iterates in deterministic order
-    _EQUIV_ORIGIN[chainmap_type] = chainmap_equiv_set
+    _EQUIV_ORIGIN[chainmap_type] = chainmap_equiv_set.copy()
 
 # Add all DefaultDict variants to mapping - DETERMINISTIC ORDER
-defaultdict_equiv_set = set(ALL_DEFAULTDICT_TYPES) | {
-    dict,
-    Dict,
-    AbcMapping,
-    AbcMutableMapping,
-    AbcContainer,
-}
+defaultdict_equiv_set = {dict, Dict, AbcMapping, AbcMutableMapping, AbcContainer}
+for defaultdict_type in ALL_DEFAULTDICT_TYPES:
+    defaultdict_equiv_set.add(defaultdict_type)  # type: ignore
 for defaultdict_type in ALL_DEFAULTDICT_TYPES:  # Iterates in deterministic order
-    _EQUIV_ORIGIN[defaultdict_type] = defaultdict_equiv_set
+    _EQUIV_ORIGIN[defaultdict_type] = defaultdict_equiv_set.copy()
 
 # Python 3.9+ support for built-in types as generics
 if sys.version_info >= (3, 9):
     builtin_generic_types = {list, dict, set, tuple, frozenset}
     for builtin_type in builtin_generic_types:
         if builtin_type in _EQUIV_ORIGIN:
-            _EQUIV_ORIGIN[builtin_type] = _EQUIV_ORIGIN[builtin_type] | {builtin_type}
+            existing_set = set(_EQUIV_ORIGIN[builtin_type])  # type: ignore
+            existing_set.add(builtin_type)
+            _EQUIV_ORIGIN[builtin_type] = existing_set
 
 
 def is_equivalent_origin(t1: Type[Any], t2: Type[Any]) -> bool:

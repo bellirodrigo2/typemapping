@@ -14,7 +14,6 @@ from typemapping.origins import is_equivalent_origin
 # Handle Annotated imports for compatibility across Python versions
 try:
     import typing_extensions
-
     typing_extensions_Annotated = getattr(typing_extensions, "Annotated", None)
 except ImportError:
     typing_extensions_Annotated = None
@@ -427,7 +426,7 @@ def _is_collection_specialization_subtype(
         specialization_map[chainmap_type] = dict
 
     if sub_origin in specialization_map:
-        base_type = specialization_map[sub_origin]
+        base_type = specialization_map[sub_origin] #type:ignore
         return base_type == super_origin or is_equivalent_origin(
             base_type, super_origin
         )
@@ -444,14 +443,13 @@ def _is_abstraction_compatible(sub_origin: Type[Any], super_origin: Type[Any]) -
     """
     # Import here to avoid circular imports
     from collections import defaultdict, deque
-
     try:
-        from collections.abc import (Container, Iterable, Mapping,
-                                     MutableMapping, MutableSequence, Sequence)
+        from collections.abc import (Container, Iterable, Mapping, MutableMapping,
+                                     MutableSequence, Sequence)
     except ImportError:
         # Fallback for older Python versions
         from typing import Container, Iterable, Mapping, MutableMapping, MutableSequence, Sequence  # type: ignore
-
+    
     from typing import Dict, FrozenSet, List, Set, Tuple
 
     # Import all possible collection types
@@ -490,7 +488,7 @@ def _is_abstraction_compatible(sub_origin: Type[Any], super_origin: Type[Any]) -
 
     # Add all collection variants dynamically
     for counter_type in filter(None, [ConcreteCounter, TypingCounter]):
-        concrete_to_abstract[counter_type] = {
+        concrete_to_abstract[counter_type] = {  # type: ignore
             counter_type,
             dict,
             Dict,
@@ -500,7 +498,7 @@ def _is_abstraction_compatible(sub_origin: Type[Any], super_origin: Type[Any]) -
         }
 
     for ordereddict_type in filter(None, [ConcreteOrderedDict, TypingOrderedDict]):
-        concrete_to_abstract[ordereddict_type] = {
+        concrete_to_abstract[ordereddict_type] = {  # type: ignore
             ordereddict_type,
             dict,
             Dict,
@@ -510,15 +508,15 @@ def _is_abstraction_compatible(sub_origin: Type[Any], super_origin: Type[Any]) -
         }
 
     for chainmap_type in filter(None, [ConcreteChainMap, TypingChainMap]):
-        concrete_to_abstract[chainmap_type] = {
+        concrete_to_abstract[chainmap_type] = {  # type: ignore
             chainmap_type,
             Mapping,
             MutableMapping,
             Container,
         }
 
-    if TypingDefaultDict:
-        concrete_to_abstract[TypingDefaultDict] = {
+    if TypingDefaultDict is not None:
+        concrete_to_abstract[TypingDefaultDict] = {  # type: ignore
             TypingDefaultDict,
             defaultdict,
             dict,
@@ -530,7 +528,8 @@ def _is_abstraction_compatible(sub_origin: Type[Any], super_origin: Type[Any]) -
 
     # Check if sub_origin can be a subtype of super_origin
     if sub_origin in concrete_to_abstract:
-        return super_origin in concrete_to_abstract[sub_origin]
+        abstract_set = concrete_to_abstract[sub_origin]#type:ignore
+        return super_origin in abstract_set  # type: ignore
 
     # If sub_origin not in mapping, check if they're the same
     return sub_origin == super_origin
