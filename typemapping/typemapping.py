@@ -23,7 +23,7 @@ from typing import (Any, Callable, Dict, List, Optional, Sequence, Tuple, Type,
                     TypeVar, Union, get_args, get_origin, get_type_hints)
 
 # Import our advanced type checking functions
-from .type_check import (extended_isinstance, extended_issubclass,
+from .type_check import (extended_isinstance, generic_issubclass,
                          is_Annotated, is_equal_type)
 
 # Python 3.8 compatibility - Field is not subscriptable
@@ -90,8 +90,8 @@ class VarTypeInfo:
             return self.isequal(get_args(tgttype)[0])
 
         try:
-            # Use our advanced extended_issubclass for better type relationships
-            return self.isequal(tgttype) or extended_issubclass(self.basetype, tgttype)
+            # Use our advanced generic_issubclass for better type relationships
+            return self.isequal(tgttype) or generic_issubclass(self.basetype, tgttype)
         except (TypeError, AttributeError):
             return False
 

@@ -12,7 +12,7 @@ from typemapping import (VarTypeInfo, get_field_type, get_func_args,
                          get_return_type, get_safe_type_hints, is_Annotated,
                          is_equal_type, map_dataclass_fields, map_func_args,
                          map_init_field, map_model_fields, map_return_type,
-                         safe_issubclass, unwrap_partial)
+                         defensive_issubclass, unwrap_partial)
 
 # Test constants
 TEST_TYPE = sys.version_info >= (3, 9)
@@ -265,37 +265,37 @@ def test_is_equal_type_annotated():
     assert not is_equal_type(ann1, ann3)
 
 
-# ------------ Test safe_issubclass edge cases ------------
+# ------------ Test defensive_issubclass edge cases ------------
 
 
-def testsafe_issubclass_none():
-    """Test safe_issubclass with None"""
-    assert not safe_issubclass(None, str)
-    assert not safe_issubclass(str, None)
+def testdefensive_issubclass_none():
+    """Test defensive_issubclass with None"""
+    assert not defensive_issubclass(None, str)
+    assert not defensive_issubclass(str, None)
 
 
-def testsafe_issubclass_union():
-    """Test safe_issubclass with Union types"""
+def testdefensive_issubclass_union():
+    """Test defensive_issubclass with Union types"""
     # Updated implementation requires ALL types in Union to be subclasses
-    assert safe_issubclass(
+    assert defensive_issubclass(
         Union[str, int], object
     )  # Both str and int are subclasses of object
-    assert not safe_issubclass(Union[str, int], int)  # str is not subclass of int
-    assert not safe_issubclass(
+    assert not defensive_issubclass(Union[str, int], int)  # str is not subclass of int
+    assert not defensive_issubclass(
         Union[str, int], float
     )  # Neither str nor int are subclasses of float
 
 
-def testsafe_issubclass_generics():
-    """Test safe_issubclass with generic types"""
-    assert safe_issubclass(List[str], list)
-    assert safe_issubclass(Dict[str, int], dict)
+def testdefensive_issubclass_generics():
+    """Test defensive_issubclass with generic types"""
+    assert defensive_issubclass(List[str], list)
+    assert defensive_issubclass(Dict[str, int], dict)
 
 
-def testsafe_issubclass_invalid_types():
-    """Test safe_issubclass with invalid types"""
-    assert not safe_issubclass("not_a_type", str)
-    assert not safe_issubclass(42, int)
+def testdefensive_issubclass_invalid_types():
+    """Test defensive_issubclass with invalid types"""
+    assert not defensive_issubclass("not_a_type", str)
+    assert not defensive_issubclass(42, int)
 
 
 # ------------ Test is_Annotated edge cases ------------

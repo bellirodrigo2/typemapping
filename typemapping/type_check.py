@@ -25,7 +25,7 @@ typing_Annotated = getattr(typing, "Annotated", None)
 # ===== PUBLIC API FUNCTIONS =====
 
 
-def extended_issubclass(subtype: Type[Any], supertype: Type[Any]) -> bool:
+def generic_issubclass(subtype: Type[Any], supertype: Type[Any]) -> bool:
     """
     Extended issubclass that works with generic types and handles variance.
 
@@ -51,11 +51,11 @@ def extended_issubclass(subtype: Type[Any], supertype: Type[Any]) -> bool:
         True if subtype is a subclass of supertype
 
     Examples:
-        >>> extended_issubclass(List[Derived], Sequence[Base])  # True - covariance + abstraction
-        >>> extended_issubclass(List[Base], Sequence[Derived])  # False - contravariance
-        >>> extended_issubclass(List[Base], Sequence[Base])     # True - abstraction
-        >>> extended_issubclass(Sequence[Base], List[Base])     # False - concrete from abstract
-        >>> extended_issubclass(Union[List[int], Set[int]], Iterable[int])  # True
+        >>> generic_issubclass(List[Derived], Sequence[Base])  # True - covariance + abstraction
+        >>> generic_issubclass(List[Base], Sequence[Derived])  # False - contravariance
+        >>> generic_issubclass(List[Base], Sequence[Base])     # True - abstraction
+        >>> generic_issubclass(Sequence[Base], List[Base])     # False - concrete from abstract
+        >>> generic_issubclass(Union[List[int], Set[int]], Iterable[int])  # True
     """
     # Special case: Optional[T] is exactly Union[T, None]
     if _is_optional_type(subtype) and _is_union_type(supertype):
@@ -64,7 +64,7 @@ def extended_issubclass(subtype: Type[Any], supertype: Type[Any]) -> bool:
             # Both are Union[T, None] forms - check if inner types match
             sub_inner = _get_optional_inner_type(subtype)
             super_inner = next(arg for arg in super_args if arg is not type(None))
-            return extended_issubclass(sub_inner, super_inner)
+            return generic_issubclass(sub_inner, super_inner)
 
     if _is_optional_type(supertype) and _is_union_type(subtype):
         sub_args = get_args(subtype)
@@ -72,16 +72,16 @@ def extended_issubclass(subtype: Type[Any], supertype: Type[Any]) -> bool:
             # Both are Union[T, None] forms - check if inner types match
             super_inner = _get_optional_inner_type(supertype)
             sub_inner = next(arg for arg in sub_args if arg is not type(None))
-            return extended_issubclass(sub_inner, super_inner)
+            return generic_issubclass(sub_inner, super_inner)
 
     # Handle Union types
     if _is_union_type(supertype):
         # subtype <: Union[A, B] if subtype <: A or subtype <: B
-        return any(extended_issubclass(subtype, arg) for arg in get_args(supertype))
+        return any(generic_issubclass(subtype, arg) for arg in get_args(supertype))
 
     if _is_union_type(subtype):
         # Union[A, B] <: supertype if A <: supertype and B <: supertype
-        return all(extended_issubclass(arg, supertype) for arg in get_args(subtype))
+        return all(generic_issubclass(arg, supertype) for arg in get_args(subtype))
 
     # Get origins and args
     sub_origin = get_origin(subtype) or subtype
@@ -94,10 +94,10 @@ def extended_issubclass(subtype: Type[Any], supertype: Type[Any]) -> bool:
         super_inner = _get_optional_inner_type(supertype)
         if _is_optional_type(subtype):
             sub_inner = _get_optional_inner_type(subtype)
-            return extended_issubclass(sub_inner, super_inner)
+            return generic_issubclass(sub_inner, super_inner)
         else:
             # T <: Optional[U] if T <: U
-            return extended_issubclass(subtype, super_inner)
+            return generic_issubclass(subtype, super_inner)
 
     if _is_optional_type(subtype):
         # Optional[T] <: U cases
@@ -105,10 +105,10 @@ def extended_issubclass(subtype: Type[Any], supertype: Type[Any]) -> bool:
             # Optional[T] <: Optional[U] if T <: U
             sub_inner = _get_optional_inner_type(subtype)
             super_inner = _get_optional_inner_type(supertype)
-            return extended_issubclass(sub_inner, super_inner)
+            return generic_issubclass(sub_inner, super_inner)
         elif _is_union_type(supertype):
             # Optional[T] <: Union[A, B, ...] if Optional[T] is compatible with union
-            return any(extended_issubclass(subtype, arg) for arg in get_args(supertype))
+            return any(generic_issubclass(subtype, arg) for arg in get_args(supertype))
         else:
             # Optional[T] <: U is generally False unless U accepts None
             return False
@@ -233,7 +233,7 @@ def is_equal_type(t1: Type[Any], t2: Type[Any]) -> bool:
     Compare two types for strict equality, handling both basic and generic types.
 
     This function performs exact type equality checking with no variance allowed.
-    Unlike extended_issubclass which allows covariance, this requires exact matches
+    Unlike generic_issubclass which allows covariance, this requires exact matches
     for all type parameters.
 
     Args:
@@ -277,12 +277,12 @@ def is_equal_type(t1: Type[Any], t2: Type[Any]) -> bool:
     return all(is_equal_type(arg1, arg2) for arg1, arg2 in zip(args1, args2))
 
 
-def safe_issubclass(cls: Any, classinfo: Type[Any]) -> bool:
+def defensive_issubclass(cls: Any, classinfo: Type[Any]) -> bool:
     """
     Safe version of issubclass that handles edge cases and provides conservative Union handling.
 
     This function provides a safe wrapper around issubclass with comprehensive error
-    handling and conservative semantics for Union types. Unlike extended_issubclass,
+    handling and conservative semantics for Union types. Unlike generic_issubclass,
     this requires ALL union members to be subclasses (not just ANY).
 
     Features:
@@ -299,11 +299,11 @@ def safe_issubclass(cls: Any, classinfo: Type[Any]) -> bool:
         True if cls is safely determined to be a subclass of classinfo
 
     Examples:
-        >>> safe_issubclass(list, Sequence)  # True
-        >>> safe_issubclass(Union[list, tuple], Sequence)  # True (both are subclasses)
-        >>> safe_issubclass(Union[list, str], Sequence)  # False (str is not)
-        >>> safe_issubclass(None, int)  # False (safe handling)
-        >>> safe_issubclass("invalid", int)  # False (safe handling)
+        >>> defensive_issubclass(list, Sequence)  # True
+        >>> defensive_issubclass(Union[list, tuple], Sequence)  # True (both are subclasses)
+        >>> defensive_issubclass(Union[list, str], Sequence)  # False (str is not)
+        >>> defensive_issubclass(None, int)  # False (safe handling)
+        >>> defensive_issubclass("invalid", int)  # False (safe handling)
     """
     if cls is None:
         return False
@@ -313,7 +313,7 @@ def safe_issubclass(cls: Any, classinfo: Type[Any]) -> bool:
         # This is more restrictive but more logical
         if get_origin(cls) is Union:
             union_args = get_args(cls)
-            return all(safe_issubclass(arg, classinfo) for arg in union_args)
+            return all(defensive_issubclass(arg, classinfo) for arg in union_args)
 
         # Handle Generic types - get the origin class
         origin_cls = get_origin(cls)
@@ -548,7 +548,7 @@ def _is_covariant_arg(sub_arg: Type[Any], super_arg: Type[Any]) -> bool:
         return False  # Any is not a subtype of specific types
 
     # Recursive check for nested generics
-    return extended_issubclass(sub_arg, super_arg)
+    return generic_issubclass(sub_arg, super_arg)
 
 
 def _check_runtime_origin_compatibility(

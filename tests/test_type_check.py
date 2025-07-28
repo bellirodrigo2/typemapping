@@ -5,7 +5,7 @@ from typing import (Any, Dict, Iterable, List, Mapping, Optional, Sequence,
 import pytest
 
 # Import functions to test
-from typemapping import extended_isinstance, extended_issubclass
+from typemapping import extended_isinstance, generic_issubclass
 
 
 # Test classes for inheritance
@@ -22,93 +22,93 @@ class Other:
 
 
 class TestExtendedIssubclass:
-    """Test extended_issubclass functionality."""
+    """Test generic_issubclass functionality."""
 
     def test_covariance_with_inheritance(self):
         """Test covariance: Container[Derived] <: Container[Base]."""
-        assert extended_issubclass(List[Derived], List[Base])
-        assert extended_issubclass(Dict[str, Derived], Dict[str, Base])
-        assert extended_issubclass(Set[Derived], Set[Base])
-        assert extended_issubclass(Tuple[Derived], Tuple[Base])
+        assert generic_issubclass(List[Derived], List[Base])
+        assert generic_issubclass(Dict[str, Derived], Dict[str, Base])
+        assert generic_issubclass(Set[Derived], Set[Base])
+        assert generic_issubclass(Tuple[Derived], Tuple[Base])
 
     def test_contravariance_inheritance(self):
         """Test contravariance is not allowed: Container[Base] not <: Container[Derived]."""
-        assert not extended_issubclass(List[Base], List[Derived])
-        assert not extended_issubclass(Dict[str, Base], Dict[str, Derived])
-        assert not extended_issubclass(Set[Base], Set[Derived])
+        assert not generic_issubclass(List[Base], List[Derived])
+        assert not generic_issubclass(Dict[str, Base], Dict[str, Derived])
+        assert not generic_issubclass(Set[Base], Set[Derived])
 
     def test_concrete_to_abstract(self):
         """Test concrete types are subtypes of abstract: List[T] <: Sequence[T]."""
-        assert extended_issubclass(List[Base], Sequence[Base])
-        assert extended_issubclass(Dict[str, Base], Mapping[str, Base])
-        assert extended_issubclass(Set[Base], Iterable[Base])
-        assert extended_issubclass(List[int], Sequence[int])
+        assert generic_issubclass(List[Base], Sequence[Base])
+        assert generic_issubclass(Dict[str, Base], Mapping[str, Base])
+        assert generic_issubclass(Set[Base], Iterable[Base])
+        assert generic_issubclass(List[int], Sequence[int])
 
     def test_abstract_to_concrete_not_allowed(self):
         """Test abstract types are NOT subtypes of concrete: Sequence[T] not <: List[T]."""
-        assert not extended_issubclass(Sequence[Base], List[Base])
-        assert not extended_issubclass(Mapping[str, Base], Dict[str, Base])
-        assert not extended_issubclass(Iterable[Base], Set[Base])
+        assert not generic_issubclass(Sequence[Base], List[Base])
+        assert not generic_issubclass(Mapping[str, Base], Dict[str, Base])
+        assert not generic_issubclass(Iterable[Base], Set[Base])
 
     def test_combined_covariance_and_abstraction(self):
         """Test combined covariance + abstraction: List[Derived] <: Sequence[Base]."""
-        assert extended_issubclass(List[Derived], Sequence[Base])
-        assert extended_issubclass(Dict[str, Derived], Mapping[str, Base])
-        assert not extended_issubclass(List[Base], Sequence[Derived])
+        assert generic_issubclass(List[Derived], Sequence[Base])
+        assert generic_issubclass(Dict[str, Derived], Mapping[str, Base])
+        assert not generic_issubclass(List[Base], Sequence[Derived])
 
     def test_same_origin_different_args(self):
         """Test same origin with different arguments."""
-        assert extended_issubclass(List[Derived], List[Base])
-        assert not extended_issubclass(List[Base], List[Derived])
-        assert not extended_issubclass(List[Base], List[Other])
+        assert generic_issubclass(List[Derived], List[Base])
+        assert not generic_issubclass(List[Base], List[Derived])
+        assert not generic_issubclass(List[Base], List[Other])
 
     def test_incompatible_origins(self):
         """Test incompatible container types."""
-        assert not extended_issubclass(List[Base], Set[Base])
-        assert not extended_issubclass(Dict[str, Base], List[Base])
-        assert not extended_issubclass(Set[Base], Dict[str, Base])
+        assert not generic_issubclass(List[Base], Set[Base])
+        assert not generic_issubclass(Dict[str, Base], List[Base])
+        assert not generic_issubclass(Set[Base], Dict[str, Base])
 
     def test_union_types(self):
         """Test Union type handling."""
         # T <: Union[T, U]
-        assert extended_issubclass(List[Base], Union[List[Base], Set[Base]])
-        assert extended_issubclass(int, Union[int, str])
+        assert generic_issubclass(List[Base], Union[List[Base], Set[Base]])
+        assert generic_issubclass(int, Union[int, str])
 
         # Union[T, U] <: V if T <: V and U <: V
-        assert extended_issubclass(Union[List[Base], List[Derived]], List[Base])
-        assert not extended_issubclass(Union[List[Base], Set[Base]], List[Base])
+        assert generic_issubclass(Union[List[Base], List[Derived]], List[Base])
+        assert not generic_issubclass(Union[List[Base], Set[Base]], List[Base])
 
     def test_optional_types(self):
         """Test Optional type handling."""
         # T <: Optional[T]
-        assert extended_issubclass(List[Base], Optional[List[Base]])
-        assert extended_issubclass(int, Optional[int])
+        assert generic_issubclass(List[Base], Optional[List[Base]])
+        assert generic_issubclass(int, Optional[int])
 
         # Optional[Derived] <: Optional[Base]
-        assert extended_issubclass(Optional[Derived], Optional[Base])
-        assert not extended_issubclass(Optional[Base], Optional[Derived])
+        assert generic_issubclass(Optional[Derived], Optional[Base])
+        assert not generic_issubclass(Optional[Base], Optional[Derived])
 
         # Optional[T] <: Union[T, None]
-        assert extended_issubclass(Optional[Base], Union[Base, type(None)])
+        assert generic_issubclass(Optional[Base], Union[Base, type(None)])
 
     def test_any_type(self):
         """Test Any type handling."""
-        assert extended_issubclass(List[int], List[Any])
-        assert not extended_issubclass(List[Any], List[int])
+        assert generic_issubclass(List[int], List[Any])
+        assert not generic_issubclass(List[Any], List[int])
 
     def test_no_args_types(self):
         """Test types without generic arguments."""
-        assert extended_issubclass(list, Sequence)
-        assert extended_issubclass(dict, Mapping)
-        assert not extended_issubclass(Sequence, list)
+        assert generic_issubclass(list, Sequence)
+        assert generic_issubclass(dict, Mapping)
+        assert not generic_issubclass(Sequence, list)
 
     def test_collections_specializations(self):
         """Test specialized collections."""
         # These should work with concrete dict types
-        assert extended_issubclass(defaultdict, dict)
-        assert extended_issubclass(Counter, dict)
-        assert extended_issubclass(OrderedDict, dict)
-        assert extended_issubclass(deque, list)  # deque is like a list
+        assert generic_issubclass(defaultdict, dict)
+        assert generic_issubclass(Counter, dict)
+        assert generic_issubclass(OrderedDict, dict)
+        assert generic_issubclass(deque, list)  # deque is like a list
 
         # But not necessarily with generic Dict[K,V] due to args compatibility
         # This is more complex - let's test simpler cases
@@ -268,9 +268,9 @@ class TestEdgeCases:
             pass
 
         # Multi-level inheritance
-        assert extended_issubclass(List[C], List[A])
-        assert extended_issubclass(List[C], Sequence[A])
-        assert not extended_issubclass(List[A], List[C])
+        assert generic_issubclass(List[C], List[A])
+        assert generic_issubclass(List[C], Sequence[A])
+        assert not generic_issubclass(List[A], List[C])
 
     def test_non_container_types(self):
         """Test with non-container types."""
@@ -306,8 +306,8 @@ class TestEdgeCases:
     ],
 )
 def test_parametrized_issubclass(subtype, supertype, expected):
-    """Parametrized test for extended_issubclass."""
-    assert extended_issubclass(subtype, supertype) == expected
+    """Parametrized test for generic_issubclass."""
+    assert generic_issubclass(subtype, supertype) == expected
 
 
 @pytest.mark.parametrize(
