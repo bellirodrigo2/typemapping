@@ -496,7 +496,14 @@ def _is_abstraction_compatible(sub_origin: Type[Any], super_origin: Type[Any]) -
         )
         from typing import Set as AbcSet  # type: ignore
 
+    # Also import from typing for compatibility
+    from typing import Container as TypingContainer
     from typing import Dict, FrozenSet, List, Set, Tuple
+    from typing import Iterable as TypingIterable
+    from typing import Mapping as TypingMapping
+    from typing import MutableMapping as TypingMutableMapping
+    from typing import MutableSequence as TypingMutableSequence
+    from typing import Sequence as TypingSequence
 
     # Import all possible collection types
     try:
@@ -520,16 +527,70 @@ def _is_abstraction_compatible(sub_origin: Type[Any], super_origin: Type[Any]) -
         TypingDefaultDict = None  # type: ignore
 
     # Define abstraction hierarchy (concrete -> abstract)
+    # Include both typing and collections.abc versions
     concrete_to_abstract = {
         # Basic types
-        list: {List, Sequence, MutableSequence, Iterable, Container},
-        dict: {Dict, Mapping, MutableMapping, Container},
-        set: {Set, AbcSet, Iterable, Container},
-        tuple: {Tuple, Sequence, Iterable, Container},
-        frozenset: {FrozenSet, AbcSet, Iterable, Container},
+        list: {
+            List,
+            Sequence,
+            TypingSequence,
+            MutableSequence,
+            TypingMutableSequence,
+            Iterable,
+            TypingIterable,
+            Container,
+            TypingContainer,
+        },
+        dict: {
+            Dict,
+            Mapping,
+            TypingMapping,
+            MutableMapping,
+            TypingMutableMapping,
+            Container,
+            TypingContainer,
+        },
+        set: {Set, AbcSet, Iterable, TypingIterable, Container, TypingContainer},
+        tuple: {
+            Tuple,
+            Sequence,
+            TypingSequence,
+            Iterable,
+            TypingIterable,
+            Container,
+            TypingContainer,
+        },
+        frozenset: {
+            FrozenSet,
+            AbcSet,
+            Iterable,
+            TypingIterable,
+            Container,
+            TypingContainer,
+        },
         # Basic specialized collections
-        defaultdict: {defaultdict, dict, Dict, Mapping, MutableMapping, Container},
-        deque: {deque, MutableSequence, Sequence, Iterable, Container},
+        defaultdict: {
+            defaultdict,
+            dict,
+            Dict,
+            Mapping,
+            TypingMapping,
+            MutableMapping,
+            TypingMutableMapping,
+            Container,
+            TypingContainer,
+        },
+        deque: {
+            deque,
+            MutableSequence,
+            TypingMutableSequence,
+            Sequence,
+            TypingSequence,
+            Iterable,
+            TypingIterable,
+            Container,
+            TypingContainer,
+        },
     }
 
     # Add all collection variants dynamically
@@ -539,8 +600,11 @@ def _is_abstraction_compatible(sub_origin: Type[Any], super_origin: Type[Any]) -
             dict,
             Dict,
             Mapping,
+            TypingMapping,
             MutableMapping,
+            TypingMutableMapping,
             Container,
+            TypingContainer,
         }
 
     for ordereddict_type in filter(None, [ConcreteOrderedDict, TypingOrderedDict]):
@@ -549,16 +613,22 @@ def _is_abstraction_compatible(sub_origin: Type[Any], super_origin: Type[Any]) -
             dict,
             Dict,
             Mapping,
+            TypingMapping,
             MutableMapping,
+            TypingMutableMapping,
             Container,
+            TypingContainer,
         }
 
     for chainmap_type in filter(None, [ConcreteChainMap, TypingChainMap]):
         concrete_to_abstract[chainmap_type] = {  # type: ignore
             chainmap_type,
             Mapping,
+            TypingMapping,
             MutableMapping,
+            TypingMutableMapping,
             Container,
+            TypingContainer,
         }
 
     if TypingDefaultDict is not None:
@@ -568,8 +638,11 @@ def _is_abstraction_compatible(sub_origin: Type[Any], super_origin: Type[Any]) -
             dict,
             Dict,
             Mapping,
+            TypingMapping,
             MutableMapping,
+            TypingMutableMapping,
             Container,
+            TypingContainer,
         }
 
     # Check if sub_origin can be a subtype of super_origin

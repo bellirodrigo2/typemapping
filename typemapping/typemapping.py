@@ -572,6 +572,12 @@ def get_func_args(
             continue
 
         annotation = hints.get(name, param.annotation)
+
+        # If annotation is a string (forward reference) and we have it in hints,
+        # it should already be resolved. If not, try to resolve it from localns
+        if isinstance(annotation, str) and localns and annotation in localns:
+            annotation = localns[annotation]
+
         arg = field_factory(param, annotation, bt_default_fallback)
         funcargs.append(arg)
 

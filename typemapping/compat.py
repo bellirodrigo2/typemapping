@@ -106,6 +106,18 @@ def get_args(tp: Type[Any]) -> Tuple[Any, ...]:
 
     # Special handling for Annotated in Python 3.8
     if sys.version_info < (3, 9):
+        # For typing_extensions._AnnotatedAlias in Python 3.8
+        if hasattr(tp, "__class__") and tp.__class__.__name__ == "_AnnotatedAlias":
+            # The structure in Python 3.8 for Annotated is different
+            # We need to reconstruct it properly
+            if hasattr(tp, "__origin__") and hasattr(tp, "__metadata__"):
+                origin = tp.__origin__
+                metadata = tp.__metadata__
+                # Ensure metadata is a tuple
+                if not isinstance(metadata, tuple):
+                    metadata = (metadata,)
+                return (origin,) + metadata
+
         # Check if it's an Annotated type by checking for __metadata__
         if hasattr(tp, "__metadata__") and hasattr(tp, "__origin__"):
             # For Annotated[T, metadata...], __origin__ is T and __metadata__ contains the metadata
@@ -116,25 +128,6 @@ def get_args(tp: Type[Any]) -> Tuple[Any, ...]:
                 return (base_type,) + metadata
             else:
                 return (base_type, metadata)
-
-        # For typing_extensions._AnnotatedAlias in Python 3.8
-        if hasattr(tp, "__class__") and tp.__class__.__name__ == "_AnnotatedAlias":
-            # Try to access the internal attributes
-            if (
-                hasattr(tp, "_inst")
-                and isinstance(tp._inst, tuple)
-                and len(tp._inst) >= 2
-            ):
-                # _inst is (base_type, *metadata)
-                return tp._inst
-            elif hasattr(tp, "__args__") and hasattr(tp, "__metadata__"):
-                # Fallback to combining __args__ and __metadata__
-                base = tp.__args__[0] if tp.__args__ else tp.__origin__
-                metadata = tp.__metadata__
-                if isinstance(metadata, tuple):
-                    return (base,) + metadata
-                else:
-                    return (base, metadata)
 
         # Also check __args__ attribute which some types have
         if hasattr(tp, "__args__"):
