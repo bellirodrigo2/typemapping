@@ -8,6 +8,7 @@ and issubclass, supporting generic types, variance, and runtime validation.
 import inspect
 import typing
 from typing import Any, Optional, Type, Union, get_args, get_origin
+from typing_extensions import Annotated
 
 from typemapping.origins import is_equivalent_origin
 
@@ -217,7 +218,8 @@ def is_Annotated(bt: Optional[Type[Any]]) -> bool:
         return False
 
     origin = get_origin(bt)
-
+    if origin is Annotated:
+        return True
     # Check against both typing and typing_extensions versions
     annotated_types = []
     if typing_Annotated is not None:
