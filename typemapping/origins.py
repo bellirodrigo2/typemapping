@@ -9,10 +9,24 @@ This module provides sophisticated type checking that handles:
 """
 
 import sys
+
 # Basic collections
 from collections import defaultdict, deque
-from typing import (Any, Callable, Collection, Dict, FrozenSet, List, Optional,
-                    Set, Tuple, Type, Union, get_args, get_origin)
+from typing import (
+    Any,
+    Callable,
+    Collection,
+    Dict,
+    FrozenSet,
+    List,
+    Optional,
+    Set,
+    Tuple,
+    Type,
+    Union,
+    get_args,
+    get_origin,
+)
 
 # ===== RESOLVE TYPING vs COLLECTIONS CONFLICTS =====
 
@@ -57,9 +71,9 @@ except ImportError:
     from typing import Iterable as AbcIterable  # type: ignore
     from typing import Mapping as AbcMapping  # type: ignore
     from typing import MutableMapping as AbcMutableMapping  # type: ignore
+    from typing import MutableSequence, MutableSet  # type: ignore
     from typing import Sequence as AbcSequence  # type: ignore
     from typing import Set as AbcSet  # type: ignore
-    from typing import MutableSequence, MutableSet  # type: ignore
 
 # ===== UNIFIED TYPE MAPPINGS =====
 

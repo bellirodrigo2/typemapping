@@ -1,14 +1,23 @@
 import sys
 from dataclasses import dataclass, field
+from typing import Callable, Dict, List, Mapping, Optional, Tuple, Type, Union
 from typing import Dict as Dict_t
 from typing import List as List_t
 
-from typing_extensions import (Annotated, Any, Callable, Dict, List, Mapping,
-                               Optional, Type, Union,Tuple)
+from typing_extensions import (
+    Annotated,
+    Any,
+)
 
-from typemapping import (NO_DEFAULT, VarTypeInfo, get_field_type,
-                         get_func_args, map_dataclass_fields, map_init_field,
-                         map_model_fields)
+from typemapping import (
+    NO_DEFAULT,
+    VarTypeInfo,
+    get_field_type,
+    get_func_args,
+    map_dataclass_fields,
+    map_init_field,
+    map_model_fields,
+)
 
 TEST_TYPE = sys.version_info >= (3, 9)
 

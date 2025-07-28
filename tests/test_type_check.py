@@ -1,6 +1,16 @@
 from collections import Counter, OrderedDict, defaultdict, deque
-from typing import (Any, Dict, Iterable, List, Mapping, Optional, Sequence,
-                    Set, Tuple, Union)
+from typing import (
+    Any,
+    Dict,
+    Iterable,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+    Union,
+)
 
 import pytest
 

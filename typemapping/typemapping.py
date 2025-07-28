@@ -19,15 +19,35 @@ import sys
 from dataclasses import MISSING, dataclass, fields
 from functools import lru_cache, partial
 from inspect import Parameter, signature
-from typing import (Any, Callable, Dict, List, Optional, Sequence, Tuple, Type,
-                    TypeVar, Union, get_type_hints)
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+    get_type_hints,
+)
 
 # Import our compatibility layer
-from typemapping.compat import (get_args, get_origin, strip_annotated, get_annotated_metadata)
+from typemapping.compat import (
+    get_annotated_metadata,
+    get_args,
+    get_origin,
+    strip_annotated,
+)
 
 # Import our advanced type checking functions
-from typemapping.type_check import (extended_isinstance, generic_issubclass,
-                                   is_Annotated, is_equal_type)
+from typemapping.type_check import (
+    extended_isinstance,
+    generic_issubclass,
+    is_Annotated,
+    is_equal_type,
+)
 
 # Python 3.8 compatibility - Field is not subscriptable
 if sys.version_info >= (3, 9):
@@ -226,6 +246,14 @@ def get_safe_type_hints(
                     except (AttributeError, KeyError):
                         pass
 
+        # Add localns to globalns if provided
+        if localns:
+            globalns.update(localns)
+
+        # For Python 3.8, we need to handle None type specially
+        if sys.version_info < (3, 9):
+            globalns["NoneType"] = type(None)
+
         return get_type_hints(
             obj, globalns=globalns, localns=localns, include_extras=True
         )
@@ -233,7 +261,9 @@ def get_safe_type_hints(
         # Fallback to basic inspection if type hints fail
         try:
             if hasattr(obj, "__annotations__"):
-                return obj.__annotations__.copy()
+                annotations = obj.__annotations__.copy()
+                # In Python 3.8, forward refs remain as strings in fallback
+                return annotations
         except AttributeError:
             pass
         return {}
@@ -374,7 +404,7 @@ def map_init_field(
 
     This strategy extracts type information from constructor parameters.
     """
-    init_method = getattr(cls, "__init__")
+    init_method = cls.__init__
 
     # If it's object.__init__, return empty list since it has no useful parameters
     if init_method is object.__init__:
@@ -466,6 +496,13 @@ def map_return_type(
 
     if raw_return_type is inspect.Signature.empty:
         raw_return_type = None
+
+    # Handle special case for None return type
+    if raw_return_type is None and "return" in hints:
+        # Check if the annotation was explicitly None (not just missing)
+        func_annotations = getattr(func, "__annotations__", {})
+        if "return" in func_annotations and func_annotations["return"] is None:
+            raw_return_type = type(None)
 
     return make_funcarg(
         name=func.__name__,

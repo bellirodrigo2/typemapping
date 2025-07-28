@@ -3,16 +3,27 @@ import sys
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from functools import partial
+from typing import Dict, List, Optional, Union
 
 import pytest
-from typing_extensions import (Annotated, Any, Dict, List, Optional, Protocol,
-                               Union)
+from typing_extensions import Annotated, Any, Protocol
 
-from typemapping import (VarTypeInfo, get_field_type, get_func_args,
-                         get_return_type, get_safe_type_hints, is_Annotated,
-                         is_equal_type, map_dataclass_fields, map_func_args,
-                         map_init_field, map_model_fields, map_return_type,
-                         defensive_issubclass, unwrap_partial)
+from typemapping import (
+    VarTypeInfo,
+    defensive_issubclass,
+    get_field_type,
+    get_func_args,
+    get_return_type,
+    get_safe_type_hints,
+    is_Annotated,
+    is_equal_type,
+    map_dataclass_fields,
+    map_func_args,
+    map_init_field,
+    map_model_fields,
+    map_return_type,
+    unwrap_partial,
+)
 
 # Test constants
 TEST_TYPE = sys.version_info >= (3, 9)

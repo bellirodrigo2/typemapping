@@ -59,20 +59,43 @@ __all__ = [
 ]
 
 
-from typemapping.typemapping import (NO_DEFAULT, VarTypeInfo, get_field_type,
-                                     get_func_args, get_return_type,
-                                     get_safe_type_hints, map_dataclass_fields,
-                                     map_func_args, map_init_field,
-                                     map_model_fields, map_return_type,
-                                     unwrap_partial)
-
-# Re-export main functionality
-from .origins import (are_args_compatible, debug_type_info,
-                      get_compatibility_chain, get_equivalent_origin,
-                      is_equivalent_origin, is_fully_compatible)
-from .type_check import (extended_isinstance, generic_issubclass,
-                         is_Annotated, is_equal_type, defensive_issubclass)
+from typemapping.typemapping import (
+    NO_DEFAULT,
+    VarTypeInfo,
+    get_field_type,
+    get_func_args,
+    get_return_type,
+    get_safe_type_hints,
+    map_dataclass_fields,
+    map_func_args,
+    map_init_field,
+    map_model_fields,
+    map_return_type,
+    unwrap_partial,
+)
 
 # Re-export compatibility functions
-from .compat import (get_args, get_origin, is_annotated_type,
-                     strip_annotated, get_annotated_metadata)
+from .compat import (
+    get_annotated_metadata,
+    get_args,
+    get_origin,
+    is_annotated_type,
+    strip_annotated,
+)
+
+# Re-export main functionality
+from .origins import (
+    are_args_compatible,
+    debug_type_info,
+    get_compatibility_chain,
+    get_equivalent_origin,
+    is_equivalent_origin,
+    is_fully_compatible,
+)
+from .type_check import (
+    defensive_issubclass,
+    extended_isinstance,
+    generic_issubclass,
+    is_Annotated,
+    is_equal_type,
+)

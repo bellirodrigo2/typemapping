@@ -2,16 +2,33 @@ from collections import defaultdict, deque
 from collections.abc import Iterable as AbcIterable
 from collections.abc import Mapping as AbcMapping
 from collections.abc import Sequence as AbcSequence
-from typing import (Callable, Container, Counter, Dict, Iterable, List,
-                    Mapping, Optional, OrderedDict, Sequence, Set, Tuple,
-                    Union)
+from typing import (
+    Callable,
+    Container,
+    Counter,
+    Dict,
+    Iterable,
+    List,
+    Mapping,
+    Optional,
+    OrderedDict,
+    Sequence,
+    Set,
+    Tuple,
+    Union,
+)
 
 import pytest
 
 # Import the functions to test
-from typemapping import (are_args_compatible, debug_type_info,
-                         get_compatibility_chain, get_equivalent_origin,
-                         is_equivalent_origin, is_fully_compatible)
+from typemapping import (
+    are_args_compatible,
+    debug_type_info,
+    get_compatibility_chain,
+    get_equivalent_origin,
+    is_equivalent_origin,
+    is_fully_compatible,
+)
 
 
 class TestIsEquivalentOrigin:

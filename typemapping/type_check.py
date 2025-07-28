@@ -10,12 +10,17 @@ import typing
 from typing import Any, Optional, Type, Union
 
 # Import our compatibility layer
-from typemapping.compat import (get_args, get_origin, is_annotated_type)
+from typemapping.compat import (
+    get_args,
+    get_origin,
+    is_annotated_type,
+)
 from typemapping.origins import is_equivalent_origin
 
 # Handle Annotated imports for compatibility across Python versions
 try:
     import typing_extensions
+
     typing_extensions_Annotated = getattr(typing_extensions, "Annotated", None)
 except ImportError:
     typing_extensions_Annotated = None
@@ -244,6 +249,25 @@ def is_equal_type(t1: Type[Any], t2: Type[Any]) -> bool:
     if t1 is None or t2 is None:
         return t1 is t2
 
+    # Special handling for Annotated types
+    if is_annotated_type(t1) and is_annotated_type(t2):
+        # For Annotated types, we need to compare both the base type and metadata
+        args1 = get_args(t1)
+        args2 = get_args(t2)
+
+        if len(args1) != len(args2):
+            return False
+
+        # Compare all components (base type + metadata)
+        return all(
+            (
+                is_equal_type(a1, a2)
+                if hasattr(a1, "__class__") and hasattr(a2, "__class__")
+                else a1 == a2
+            )
+            for a1, a2 in zip(args1, args2)
+        )
+
     # Get origins and args using our compat layer
     origin1, origin2 = get_origin(t1), get_origin(t2)
     args1, args2 = get_args(t1), get_args(t2)
@@ -362,6 +386,18 @@ def _is_subtype_origin(sub_origin: Type[Any], super_origin: Type[Any]) -> bool:
         # Additional check: concrete -> abstract is allowed, but not abstract -> concrete
         return _is_abstraction_compatible(sub_origin, super_origin)
 
+    # Special handling for imported types
+    # In Python 3.8, sometimes Sequence from typing != Sequence from collections.abc
+    if hasattr(sub_origin, "__name__") and hasattr(super_origin, "__name__"):
+        if sub_origin.__name__ == super_origin.__name__:
+            # Check if they're both abstract base classes with same name
+            sub_module = getattr(sub_origin, "__module__", "")
+            super_module = getattr(super_origin, "__module__", "")
+            if ("typing" in sub_module or "collections" in sub_module) and (
+                "typing" in super_module or "collections" in super_module
+            ):
+                return True
+
     # Fallback to regular issubclass for non-generic types
     try:
         if inspect.isclass(sub_origin) and inspect.isclass(super_origin):
@@ -433,13 +469,29 @@ def _is_abstraction_compatible(sub_origin: Type[Any], super_origin: Type[Any]) -
     """
     # Import here to avoid circular imports
     from collections import defaultdict, deque
+
     try:
-        from collections.abc import (Container, Iterable, Mapping, MutableMapping,
-                                     MutableSequence, Sequence)
+        from collections.abc import (
+            Container,
+            Iterable,
+            Mapping,
+            MutableMapping,
+            MutableSequence,
+            Sequence,
+        )
+        from collections.abc import Set as AbcSet
     except ImportError:
         # Fallback for older Python versions
-        from typing import Container, Iterable, Mapping, MutableMapping, MutableSequence, Sequence  # type: ignore
-    
+        from typing import (  # type: ignore
+            Container,
+            Iterable,
+            Mapping,
+            MutableMapping,
+            MutableSequence,
+            Sequence,
+        )
+        from typing import Set as AbcSet  # type: ignore
+
     from typing import Dict, FrozenSet, List, Set, Tuple
 
     # Import all possible collection types
@@ -468,9 +520,9 @@ def _is_abstraction_compatible(sub_origin: Type[Any], super_origin: Type[Any]) -
         # Basic types
         list: {List, Sequence, MutableSequence, Iterable, Container},
         dict: {Dict, Mapping, MutableMapping, Container},
-        set: {Set, Iterable, Container},
+        set: {Set, AbcSet, Iterable, Container},
         tuple: {Tuple, Sequence, Iterable, Container},
-        frozenset: {FrozenSet, Iterable, Container},
+        frozenset: {FrozenSet, AbcSet, Iterable, Container},
         # Basic specialized collections
         defaultdict: {defaultdict, dict, Dict, Mapping, MutableMapping, Container},
         deque: {deque, MutableSequence, Sequence, Iterable, Container},
