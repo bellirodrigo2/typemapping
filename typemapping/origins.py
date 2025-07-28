@@ -99,7 +99,7 @@ ALL_DEFAULTDICT_TYPES = list(
 _EQUIV_ORIGIN: Dict[Type[Any], Collection[Type[Any]]] = {
     # Sequences
     list: {list, List, AbcSequence, MutableSequence, AbcIterable, AbcContainer},
-    tuple: {tuple, Tuple, AbcSequence, AbcIterable, AbcContainer}, #type:ignore
+    tuple: {tuple, Tuple, AbcSequence, AbcIterable, AbcContainer},  # type:ignore
     # Sets
     set: {set, Set, AbcSet, MutableSet, AbcIterable, AbcContainer},
     frozenset: {frozenset, FrozenSet, AbcSet, AbcIterable, AbcContainer},
@@ -119,7 +119,7 @@ _EQUIV_ORIGIN: Dict[Type[Any], Collection[Type[Any]]] = {
         AbcContainer,
     },
     # Callables
-    type(lambda: None): {type(lambda: None), Callable, AbcCallable}, #type:ignore
+    type(lambda: None): {type(lambda: None), Callable, AbcCallable},  # type:ignore
 }
 
 # Add all Counter variants to mapping - DETERMINISTIC ORDER
@@ -318,7 +318,7 @@ def get_compatibility_chain(t: Type[Any]) -> List[Type[Any]]:
     """
     origin = get_origin(t) or t
 
-    for canonical, equiv_set in _EQUIV_ORIGIN.items():
+    for equiv_set in _EQUIV_ORIGIN.values():
         if origin in equiv_set:
             # Sort by specificity (concrete types first)
             concrete = [typ for typ in equiv_set if not hasattr(typ, "__origin__")]
