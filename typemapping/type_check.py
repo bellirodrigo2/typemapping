@@ -8,7 +8,6 @@ and issubclass, supporting generic types, variance, and runtime validation.
 import inspect
 import typing
 from typing import Any, Optional, Type, Union, get_args, get_origin
-from typing_extensions import Annotated
 
 from typemapping.origins import is_equivalent_origin
 
@@ -218,8 +217,7 @@ def is_Annotated(bt: Optional[Type[Any]]) -> bool:
         return False
 
     origin = get_origin(bt)
-    if origin is Annotated:
-        return True
+
     # Check against both typing and typing_extensions versions
     annotated_types = []
     if typing_Annotated is not None:
@@ -235,7 +233,7 @@ def is_equal_type(t1: Type[Any], t2: Type[Any]) -> bool:
     Compare two types for strict equality, handling both basic and generic types.
 
     This function performs exact type equality checking with no variance allowed.
-    Unlike generic_issubclass which allows covariance, this requires exact matches
+    Unlike extended_issubclass which allows covariance, this requires exact matches
     for all type parameters.
 
     Args:
@@ -284,7 +282,7 @@ def defensive_issubclass(cls: Any, classinfo: Type[Any]) -> bool:
     Safe version of issubclass that handles edge cases and provides conservative Union handling.
 
     This function provides a safe wrapper around issubclass with comprehensive error
-    handling and conservative semantics for Union types. Unlike generic_issubclass,
+    handling and conservative semantics for Union types. Unlike extended_issubclass,
     this requires ALL union members to be subclasses (not just ANY).
 
     Features:
@@ -428,7 +426,7 @@ def _is_collection_specialization_subtype(
         specialization_map[chainmap_type] = dict
 
     if sub_origin in specialization_map:
-        base_type = specialization_map[sub_origin] #type:ignore
+        base_type = specialization_map[sub_origin]
         return base_type == super_origin or is_equivalent_origin(
             base_type, super_origin
         )
@@ -530,7 +528,7 @@ def _is_abstraction_compatible(sub_origin: Type[Any], super_origin: Type[Any]) -
 
     # Check if sub_origin can be a subtype of super_origin
     if sub_origin in concrete_to_abstract:
-        abstract_set = concrete_to_abstract[sub_origin]#type:ignore
+        abstract_set = concrete_to_abstract[sub_origin]
         return super_origin in abstract_set  # type: ignore
 
     # If sub_origin not in mapping, check if they're the same
