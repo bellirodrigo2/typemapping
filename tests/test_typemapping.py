@@ -4,7 +4,7 @@ from typing import Dict as Dict_t
 from typing import List as List_t
 
 from typing_extensions import (Annotated, Any, Callable, Dict, List, Mapping,
-                               Optional, Type, Union)
+                               Optional, Type, Union,Tuple)
 
 from typemapping import (NO_DEFAULT, VarTypeInfo, get_field_type,
                          get_func_args, map_dataclass_fields, map_init_field,
@@ -27,7 +27,7 @@ def make_vartypeinfo(
     argtype: Optional[Type[Any]] = None,
     default: Optional[Any] = None,
     has_default: bool = False,
-    extras: Optional[tuple[Any, ...]] = None,
+    extras: Optional[Tuple[Any, ...]] = None,
 ) -> VarTypeInfo:
     return VarTypeInfo(
         name=name,
