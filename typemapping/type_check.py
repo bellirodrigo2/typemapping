@@ -395,18 +395,18 @@ def _is_collection_specialization_subtype(
         from collections import Counter as ConcreteCounter
         from collections import OrderedDict as ConcreteOrderedDict
     except ImportError:
-        ConcreteCounter = None
-        ConcreteOrderedDict = None
-        ConcreteChainMap = None
+        ConcreteCounter = None  # type: ignore
+        ConcreteOrderedDict = None  # type: ignore
+        ConcreteChainMap = None  # type: ignore
 
     try:
         from typing import ChainMap as TypingChainMap
         from typing import Counter as TypingCounter
         from typing import OrderedDict as TypingOrderedDict
     except ImportError:
-        TypingCounter = None
-        TypingOrderedDict = None
-        TypingChainMap = None
+        TypingCounter = None  # type: ignore
+        TypingOrderedDict = None  # type: ignore
+        TypingChainMap = None  # type: ignore
 
     # Map specializations to their base types
     specialization_map = {
@@ -444,8 +444,14 @@ def _is_abstraction_compatible(sub_origin: Type[Any], super_origin: Type[Any]) -
     """
     # Import here to avoid circular imports
     from collections import defaultdict, deque
-    from collections.abc import (Container, Iterable, Mapping, MutableMapping,
-                                 MutableSequence, Sequence)
+
+    try:
+        from collections.abc import (Container, Iterable, Mapping,
+                                     MutableMapping, MutableSequence, Sequence)
+    except ImportError:
+        # Fallback for older Python versions
+        from typing import Container, Iterable, Mapping, MutableMapping, MutableSequence, Sequence  # type: ignore
+
     from typing import Dict, FrozenSet, List, Set, Tuple
 
     # Import all possible collection types
@@ -454,9 +460,9 @@ def _is_abstraction_compatible(sub_origin: Type[Any], super_origin: Type[Any]) -
         from collections import Counter as ConcreteCounter
         from collections import OrderedDict as ConcreteOrderedDict
     except ImportError:
-        ConcreteCounter = None
-        ConcreteOrderedDict = None
-        ConcreteChainMap = None
+        ConcreteCounter = None  # type: ignore
+        ConcreteOrderedDict = None  # type: ignore
+        ConcreteChainMap = None  # type: ignore
 
     try:
         from typing import ChainMap as TypingChainMap
@@ -464,10 +470,10 @@ def _is_abstraction_compatible(sub_origin: Type[Any], super_origin: Type[Any]) -
         from typing import DefaultDict as TypingDefaultDict
         from typing import OrderedDict as TypingOrderedDict
     except ImportError:
-        TypingCounter = None
-        TypingOrderedDict = None
-        TypingChainMap = None
-        TypingDefaultDict = None
+        TypingCounter = None  # type: ignore
+        TypingOrderedDict = None  # type: ignore
+        TypingChainMap = None  # type: ignore
+        TypingDefaultDict = None  # type: ignore
 
     # Define abstraction hierarchy (concrete -> abstract)
     concrete_to_abstract = {
@@ -564,7 +570,7 @@ def _check_runtime_origin_compatibility(
     return False
 
 
-def _validate_generic_args(obj: Any, args: tuple, origin: Type[Any]) -> bool:
+def _validate_generic_args(obj: Any, args: tuple, origin: Type[Any]) -> bool:  # type: ignore
     """
     Validate that object's contents match the generic type arguments.
 
@@ -585,7 +591,7 @@ def _validate_generic_args(obj: Any, args: tuple, origin: Type[Any]) -> bool:
         return False
 
 
-def _validate_sequence_args(obj: Any, args: tuple) -> bool:
+def _validate_sequence_args(obj: Any, args: tuple) -> bool:  # type: ignore
     """Validate sequence type arguments."""
     if not args:
         return True
@@ -614,7 +620,7 @@ def _validate_sequence_args(obj: Any, args: tuple) -> bool:
     return True
 
 
-def _validate_mapping_args(obj: Any, args: tuple) -> bool:
+def _validate_mapping_args(obj: Any, args: tuple) -> bool:  # type: ignore
     """Validate mapping type arguments."""
     if len(args) < 2:
         return True
@@ -647,7 +653,7 @@ def _validate_mapping_args(obj: Any, args: tuple) -> bool:
     return True
 
 
-def _validate_set_args(obj: Any, args: tuple) -> bool:
+def _validate_set_args(obj: Any, args: tuple) -> bool:  # type: ignore
     """Validate set type arguments."""
     if not args:
         return True

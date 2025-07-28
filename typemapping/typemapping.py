@@ -5,7 +5,7 @@ This module provides sophisticated type inspection capabilities for extracting t
 from function arguments, class fields, and annotations. It supports:
 
 - Function argument mapping with type hints
-- Dataclass field inspection  
+- Dataclass field inspection
 - Class field mapping from type hints
 - Annotated type unwrapping and metadata extraction
 - Partial function handling
@@ -16,13 +16,23 @@ Integrates with the advanced type checking system from typemapping.origins and t
 
 import inspect
 import sys
-from dataclasses import MISSING, Field, dataclass, fields
+from dataclasses import MISSING, dataclass, fields
 from functools import lru_cache, partial
 from inspect import Parameter, signature
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Type, TypeVar, Union, get_args, get_origin, get_type_hints
+from typing import (Any, Callable, Dict, List, Optional, Sequence, Tuple, Type,
+                    TypeVar, Union, get_args, get_origin, get_type_hints)
 
 # Import our advanced type checking functions
-from .type_check import extended_isinstance, extended_issubclass, is_Annotated, is_equal_type
+from .type_check import (extended_isinstance, extended_issubclass,
+                         is_Annotated, is_equal_type)
+
+# Python 3.8 compatibility - Field is not subscriptable
+if sys.version_info >= (3, 9):
+    from dataclasses import Field
+else:
+    from dataclasses import Field as _Field
+
+    Field = _Field  # type: ignore
 
 T = TypeVar("T")
 
@@ -31,10 +41,11 @@ T = TypeVar("T")
 class VarTypeInfo:
     """
     Comprehensive type information for function arguments or class fields.
-    
+
     This class encapsulates all type-related information including the original
     annotation, resolved base type, default values, and metadata from Annotated types.
     """
+
     name: str
     argtype: Optional[Type[Any]]  # Original type annotation
     basetype: Optional[Type[Any]]  # Resolved type (unwrapped from Annotated)
@@ -55,7 +66,7 @@ class VarTypeInfo:
     def isequal(self, arg: Any) -> bool:
         """
         Check if this type info equals another type using advanced type equality.
-        
+
         Uses our enhanced is_equal_type for precise comparison.
         """
         if arg is None or self.basetype is None:
@@ -69,7 +80,7 @@ class VarTypeInfo:
     def istype(self, tgttype: type) -> bool:
         """
         Check if this type info is compatible with target type.
-        
+
         Uses our advanced type checking system for sophisticated compatibility.
         """
         if tgttype is None or self.basetype is None:
@@ -87,12 +98,12 @@ class VarTypeInfo:
     def isinstance_check(self, obj: Any) -> bool:
         """
         Check if object is instance of this type using extended isinstance.
-        
+
         This provides runtime type validation with support for generics.
         """
         if self.basetype is None:
             return obj is None
-        
+
         try:
             return extended_isinstance(obj, self.basetype)
         except (TypeError, AttributeError):
@@ -101,7 +112,7 @@ class VarTypeInfo:
     def getinstance(self, tgttype: Type[T], default: bool = True) -> Optional[T]:
         """
         Get instance of target type from extras or default.
-        
+
         This is useful for extracting framework-specific objects from Annotated metadata.
         """
         if not isinstance(tgttype, type):
@@ -126,20 +137,21 @@ class VarTypeInfo:
     def get_all_instances(self, tgttype: Type[T]) -> List[T]:
         """Get all instances of target type from extras and default."""
         instances = []
-        
+
         # From extras
         if self.extras is not None:
             instances.extend([e for e in self.extras if isinstance(e, tgttype)])
-        
+
         # From default
         if self.has_default and isinstance(self.default, tgttype):
             instances.append(self.default)
-        
+
         return instances
 
 
 class _NoDefault:
     """Sentinel object for parameters with no default value."""
+
     def __repr__(self) -> str:
         return "NO_DEFAULT"
 
@@ -164,7 +176,7 @@ def get_safe_type_hints(
 ) -> Dict[str, Any]:
     """
     Get type hints safely, handling ForwardRef and Self references.
-    
+
     This function provides robust type hint extraction that handles:
     - Forward references (strings)
     - Self references in class methods
@@ -227,7 +239,9 @@ def resolve_class_default(param: Parameter) -> Tuple[bool, Any]:
     return False, NO_DEFAULT
 
 
-def resolve_dataclass_default(field: Field[Any]) -> Tuple[bool, Any]:
+def resolve_dataclass_default(
+    field: Any,
+) -> Tuple[bool, Any]:  # Python 3.8 compat - can't use Field[Any]
     """Resolve default value for dataclass field."""
     if field.default is not MISSING:
         return True, field.default
@@ -247,13 +261,13 @@ def resolve_dataclass_default(field: Field[Any]) -> Tuple[bool, Any]:
 
 
 def field_factory(
-    obj: Union[Field[Any], Parameter],
+    obj: Union[Any, Parameter],  # Python 3.8 compat - can't use Field[Any]
     hint: Any,
     bt_default_fallback: bool = True,
 ) -> VarTypeInfo:
     """
     Create VarTypeInfo from field or parameter.
-    
+
     This is the core function that extracts comprehensive type information
     from function parameters or dataclass fields.
     """
@@ -290,7 +304,7 @@ def make_funcarg(
 ) -> VarTypeInfo:
     """
     Create VarTypeInfo with proper handling of Annotated types.
-    
+
     This function unwraps Annotated types and extracts metadata for framework use.
     """
     basetype = tgttype
@@ -317,7 +331,7 @@ def unwrap_partial(
 ) -> Tuple[Callable[..., Any], List[Any], Dict[str, Any]]:
     """
     Recursively unwrap partial functions.
-    
+
     This handles nested partials correctly, preserving argument order and precedence.
     """
     partial_kwargs: Dict[Any, Any] = {}
@@ -341,6 +355,7 @@ def unwrap_partial(
 
 # ===== FIELD MAPPING STRATEGIES =====
 
+
 def map_init_field(
     cls: type,
     bt_default_fallback: bool = True,
@@ -348,7 +363,7 @@ def map_init_field(
 ) -> List[VarTypeInfo]:
     """
     Map fields from __init__ method.
-    
+
     This strategy extracts type information from constructor parameters.
     """
     init_method = getattr(cls, "__init__")
@@ -373,7 +388,7 @@ def map_dataclass_fields(
 ) -> List[VarTypeInfo]:
     """
     Map dataclass fields.
-    
+
     This strategy extracts type information from dataclass field definitions.
     """
     hints = get_safe_type_hints(cls, localns)
@@ -391,7 +406,7 @@ def map_model_fields(
 ) -> List[VarTypeInfo]:
     """
     Map model fields from type hints and class attributes.
-    
+
     This strategy works with any class that has type hints, useful for
     model classes, configuration classes, etc.
     """
@@ -431,6 +446,7 @@ def map_model_fields(
 
 
 # ===== FUNCTION MAPPING UTILITIES =====
+
 
 def map_return_type(
     func: Callable[..., Any], localns: Optional[Dict[str, Any]] = None
@@ -474,7 +490,7 @@ def get_func_args(
 ) -> Sequence[VarTypeInfo]:
     """
     Get function arguments as VarTypeInfo list.
-    
+
     This function handles partial functions, type hints, and default values
     to provide comprehensive argument information.
     """
@@ -514,6 +530,7 @@ def get_func_args(
 
 # ===== FIELD TYPE UTILITIES =====
 
+
 def get_field_type_(
     tgt: Type[Any],
     fieldname: str,
@@ -521,10 +538,10 @@ def get_field_type_(
 ) -> Optional[Type[Any]]:
     """
     Get field type from various sources.
-    
+
     This function tries multiple strategies to find type information:
     1. Class-level type hints
-    2. __init__ method type hints  
+    2. __init__ method type hints
     3. Property return type hints
     4. Method return type hints
     """
@@ -593,10 +610,11 @@ def get_field_type(
 
 # ===== CONVENIENCE FUNCTIONS FOR FRAMEWORK INTEGRATION =====
 
+
 def extract_metadata(var_info: VarTypeInfo, target_type: Type[T]) -> List[T]:
     """
     Extract all metadata instances of target type from VarTypeInfo.
-    
+
     Useful for framework-specific annotations like FastAPI dependencies,
     SQLAlchemy column definitions, etc.
     """
@@ -614,14 +632,15 @@ def get_first_metadata(var_info: VarTypeInfo, target_type: Type[T]) -> Optional[
 
 
 def filter_fields_by_metadata(
-    fields: List[VarTypeInfo], 
-    target_type: Type[Any]
+    fields: List[VarTypeInfo], target_type: Type[Any]
 ) -> List[VarTypeInfo]:
     """Filter fields that have specific metadata type."""
     return [field for field in fields if has_metadata(field, target_type)]
 
 
-def group_fields_by_type(fields: List[VarTypeInfo]) -> Dict[Type[Any], List[VarTypeInfo]]:
+def group_fields_by_type(
+    fields: List[VarTypeInfo],
+) -> Dict[Type[Any], List[VarTypeInfo]]:
     """Group fields by their base type."""
     groups: Dict[Type[Any], List[VarTypeInfo]] = {}
     for field in fields:

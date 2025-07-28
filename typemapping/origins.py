@@ -22,9 +22,9 @@ try:
     from collections import Counter as ConcreteCounter
     from collections import OrderedDict as ConcreteOrderedDict
 except ImportError:
-    ConcreteCounter = None
-    ConcreteOrderedDict = None
-    ConcreteChainMap = None
+    ConcreteCounter = None  # type: ignore
+    ConcreteOrderedDict = None  # type: ignore
+    ConcreteChainMap = None  # type: ignore
 
 # Import typing versions with aliases
 try:
@@ -33,10 +33,10 @@ try:
     from typing import DefaultDict as TypingDefaultDict
     from typing import OrderedDict as TypingOrderedDict
 except ImportError:
-    TypingCounter = None
-    TypingOrderedDict = None
-    TypingChainMap = None
-    TypingDefaultDict = None
+    TypingCounter = None  # type: ignore
+    TypingOrderedDict = None  # type: ignore
+    TypingChainMap = None  # type: ignore
+    TypingDefaultDict = None  # type: ignore
 
 # ===== COLLECTIONS.ABC IMPORTS =====
 
@@ -51,18 +51,48 @@ try:
     from collections.abc import Sequence as AbcSequence
     from collections.abc import Set as AbcSet
 except ImportError:
-    # Fallback for older Python versions
-    from collections import Callable as AbcCallable
-    from collections import Container as AbcContainer
-    from collections import Iterable as AbcIterable
-    from collections import Mapping as AbcMapping
-    from collections import MutableMapping as AbcMutableMapping
-    from collections import MutableSequence, MutableSet
-    from collections import Sequence as AbcSequence
-    from collections import Set as AbcSet
+    # Fallback for older Python versions - but these don't exist in collections anymore
+    # so we need to handle this properly
+    try:
+        from collections import Callable as AbcCallable  # type: ignore
+    except ImportError:
+        from typing import Callable as AbcCallable  # type: ignore
 
-    # Mock missing types for older versions
-    AbcCoroutine = AbcAwaitable = AbcAsyncIterator = AbcAsyncGenerator = type(None)
+    try:
+        from collections import Container as AbcContainer  # type: ignore
+    except ImportError:
+        from typing import Container as AbcContainer  # type: ignore
+
+    try:
+        from collections import Iterable as AbcIterable  # type: ignore
+    except ImportError:
+        from typing import Iterable as AbcIterable  # type: ignore
+
+    try:
+        from collections import Mapping as AbcMapping  # type: ignore
+    except ImportError:
+        from typing import Mapping as AbcMapping  # type: ignore
+
+    try:
+        from collections import \
+            MutableMapping as AbcMutableMapping  # type: ignore
+    except ImportError:
+        from typing import MutableMapping as AbcMutableMapping  # type: ignore
+
+    try:
+        from collections import Sequence as AbcSequence  # type: ignore
+    except ImportError:
+        from typing import Sequence as AbcSequence  # type: ignore
+
+    try:
+        from collections import Set as AbcSet  # type: ignore
+    except ImportError:
+        from typing import Set as AbcSet  # type: ignore
+
+    try:
+        from collections import MutableSequence, MutableSet  # type: ignore
+    except ImportError:
+        from typing import MutableSequence, MutableSet  # type: ignore
 
 # ===== UNIFIED TYPE MAPPINGS =====
 
