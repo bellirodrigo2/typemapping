@@ -7,8 +7,10 @@ and issubclass, supporting generic types, variance, and runtime validation.
 
 import inspect
 import typing
-from typing import Any, Optional, Type, Union, get_args, get_origin
+from typing import Any, Optional, Type, Union
 
+# Import our compatibility layer
+from typemapping.compat import (get_args, get_origin, is_annotated_type)
 from typemapping.origins import is_equivalent_origin
 
 # Handle Annotated imports for compatibility across Python versions
@@ -213,19 +215,7 @@ def is_Annotated(bt: Optional[Type[Any]]) -> bool:
         >>> is_Annotated(int)  # False
         >>> is_Annotated(None)  # False
     """
-    if bt is None:
-        return False
-
-    origin = get_origin(bt)
-
-    # Check against both typing and typing_extensions versions
-    annotated_types = []
-    if typing_Annotated is not None:
-        annotated_types.append(typing_Annotated)
-    if typing_extensions_Annotated is not None:
-        annotated_types.append(typing_extensions_Annotated)
-
-    return origin in annotated_types
+    return is_annotated_type(bt)
 
 
 def is_equal_type(t1: Type[Any], t2: Type[Any]) -> bool:
@@ -254,7 +244,7 @@ def is_equal_type(t1: Type[Any], t2: Type[Any]) -> bool:
     if t1 is None or t2 is None:
         return t1 is t2
 
-    # Get origins and args
+    # Get origins and args using our compat layer
     origin1, origin2 = get_origin(t1), get_origin(t2)
     args1, args2 = get_args(t1), get_args(t2)
 

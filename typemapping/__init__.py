@@ -10,10 +10,12 @@ Python's built-in isinstance and issubclass, supporting:
 - Cross-version compatibility (typing vs collections vs typing_extensions)
 - Variance handling (covariance, contravariance)
 - Union and Optional type support
+- Python 3.8+ compatibility layer for Annotated types
 
 Usage:
     from typemapping.origins import is_equivalent_origin, get_equivalent_origin
     from typemapping.type_check import extended_isinstance, generic_issubclass
+    from typemapping.compat import get_args, get_origin  # Python 3.8+ compatible
 """
 
 __version__ = "1.0.0"
@@ -48,6 +50,12 @@ __all__ = [
     "is_equal_type",
     "is_Annotated",
     "defensive_issubclass",
+    # Compatibility layer (Python 3.8+)
+    "get_args",
+    "get_origin",
+    "is_annotated_type",
+    "strip_annotated",
+    "get_annotated_metadata",
 ]
 
 
@@ -64,3 +72,7 @@ from .origins import (are_args_compatible, debug_type_info,
                       is_equivalent_origin, is_fully_compatible)
 from .type_check import (extended_isinstance, generic_issubclass,
                          is_Annotated, is_equal_type, defensive_issubclass)
+
+# Re-export compatibility functions
+from .compat import (get_args, get_origin, is_annotated_type,
+                     strip_annotated, get_annotated_metadata)

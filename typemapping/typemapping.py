@@ -20,11 +20,14 @@ from dataclasses import MISSING, dataclass, fields
 from functools import lru_cache, partial
 from inspect import Parameter, signature
 from typing import (Any, Callable, Dict, List, Optional, Sequence, Tuple, Type,
-                    TypeVar, Union, get_args, get_origin, get_type_hints)
+                    TypeVar, Union, get_type_hints)
+
+# Import our compatibility layer
+from typemapping.compat import (get_args, get_origin, strip_annotated, get_annotated_metadata)
 
 # Import our advanced type checking functions
-from .type_check import (extended_isinstance, generic_issubclass,
-                         is_Annotated, is_equal_type)
+from typemapping.type_check import (extended_isinstance, generic_issubclass,
+                                   is_Annotated, is_equal_type)
 
 # Python 3.8 compatibility - Field is not subscriptable
 if sys.version_info >= (3, 9):
@@ -87,7 +90,11 @@ class VarTypeInfo:
             return False
 
         if is_Annotated(tgttype):
-            return self.isequal(get_args(tgttype)[0])
+            # For Python 3.8 compatibility, we need to handle this carefully
+            args = get_args(tgttype)
+            if args:
+                return self.istype(args[0])
+            return False
 
         try:
             # Use our advanced generic_issubclass for better type relationships
@@ -311,10 +318,11 @@ def make_funcarg(
     extras = None
 
     if annotation is not None and is_Annotated(annotation):
-        args = get_args(annotation)
-        if args:
-            basetype, *extras_ = args
-            extras = tuple(extras_) if extras_ else None
+        # Use our compat layer for Python 3.8 support
+        basetype = strip_annotated(annotation)
+        metadata = get_annotated_metadata(annotation)
+        if metadata:
+            extras = metadata
 
     return VarTypeInfo(
         name=name,
@@ -602,9 +610,8 @@ def get_field_type(
     """Get field type, unwrapping Annotated if present."""
     btype = get_field_type_(tgt, fieldname, localns)
     if btype is not None and is_Annotated(btype):
-        args = get_args(btype)
-        if args:
-            btype = args[0]
+        # Use our compat layer for Python 3.8 support
+        btype = strip_annotated(btype)
     return btype
 
 
