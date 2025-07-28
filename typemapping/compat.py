@@ -26,8 +26,8 @@ try:
         # In Python 3.8, we need the internal class
         try:
             from typing_extensions import (
-                _AnnotatedAlias as typing_extensions_AnnotatedAlias,
-            )  # type: ignore
+                _AnnotatedAlias as typing_extensions_AnnotatedAlias,  # type: ignore
+            )
         except ImportError:
             typing_extensions_AnnotatedAlias = None
     else:
@@ -35,6 +35,28 @@ try:
 except ImportError:
     typing_extensions_Annotated = None
     typing_extensions_AnnotatedAlias = None
+
+
+def _debug_annotated(tp: Type[Any]) -> None:
+    """Debug function to inspect Annotated type structure in Python 3.8."""
+    print(f"Type: {tp}")
+    print(f"Type repr: {repr(tp)}")
+    print(f"Type class: {tp.__class__}")
+    print(f"Type class name: {tp.__class__.__name__}")
+    print(f"Has __metadata__: {hasattr(tp, '__metadata__')}")
+    if hasattr(tp, "__metadata__"):
+        print(f"__metadata__: {tp.__metadata__}")
+    print(f"Has __origin__: {hasattr(tp, '__origin__')}")
+    if hasattr(tp, "__origin__"):
+        print(f"__origin__: {tp.__origin__}")
+    print(f"Has __args__: {hasattr(tp, '__args__')}")
+    if hasattr(tp, "__args__"):
+        print(f"__args__: {tp.__args__}")
+    print(f"Has _inst: {hasattr(tp, '_inst')}")
+    if hasattr(tp, "_inst"):
+        print(f"_inst: {tp._inst}")
+    print(f"typing.get_args result: {typing_get_args(tp)}")
+    print(f"typing.get_origin result: {typing_get_origin(tp)}")
 
 
 def get_origin(tp: Type[Any]) -> Any:
@@ -90,7 +112,10 @@ def get_args(tp: Type[Any]) -> Tuple[Any, ...]:
             base_type = tp.__origin__
             metadata = tp.__metadata__
             # Return (base_type, *metadata) to match Python 3.9+ behavior
-            return (base_type,) + metadata
+            if isinstance(metadata, tuple):
+                return (base_type,) + metadata
+            else:
+                return (base_type, metadata)
 
         # For typing_extensions._AnnotatedAlias in Python 3.8
         if hasattr(tp, "__class__") and tp.__class__.__name__ == "_AnnotatedAlias":
@@ -105,7 +130,11 @@ def get_args(tp: Type[Any]) -> Tuple[Any, ...]:
             elif hasattr(tp, "__args__") and hasattr(tp, "__metadata__"):
                 # Fallback to combining __args__ and __metadata__
                 base = tp.__args__[0] if tp.__args__ else tp.__origin__
-                return (base,) + tp.__metadata__
+                metadata = tp.__metadata__
+                if isinstance(metadata, tuple):
+                    return (base,) + metadata
+                else:
+                    return (base, metadata)
 
         # Also check __args__ attribute which some types have
         if hasattr(tp, "__args__"):
@@ -165,6 +194,15 @@ def get_annotated_metadata(tp: Type[Any]) -> Tuple[Any, ...]:
         args = get_args(tp)
         if len(args) > 1:
             return args[1:]
+
+        # Fallback for Python 3.8 - check __metadata__ directly
+        if sys.version_info < (3, 9) and hasattr(tp, "__metadata__"):
+            metadata = tp.__metadata__
+            if isinstance(metadata, tuple):
+                return metadata
+            else:
+                return (metadata,) if metadata is not None else ()
+
     return ()
 
 

@@ -316,7 +316,10 @@ def field_factory(
 
     has_default, default = resolve_default(obj)  # type: ignore
 
+    # Process the hint to handle forward references
     if hint is not inspect._empty and hint is not None:
+        # If hint is a string (forward reference), keep it as is for now
+        # It will be resolved later by the caller with proper namespace
         argtype = hint
     elif bt_default_fallback and default not in (NO_DEFAULT, None):
         argtype = type(default)
@@ -344,13 +347,15 @@ def make_funcarg(
 
     This function unwraps Annotated types and extracts metadata for framework use.
     """
+    # Use annotation if provided, otherwise fall back to tgttype
+    type_to_check = annotation if annotation is not None else tgttype
     basetype = tgttype
     extras = None
 
-    if annotation is not None and is_Annotated(annotation):
+    if type_to_check is not None and is_Annotated(type_to_check):
         # Use our compat layer for Python 3.8 support
-        basetype = strip_annotated(annotation)
-        metadata = get_annotated_metadata(annotation)
+        basetype = strip_annotated(type_to_check)
+        metadata = get_annotated_metadata(type_to_check)
         if metadata:
             extras = metadata
 

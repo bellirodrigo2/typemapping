@@ -64,6 +64,10 @@ def generic_issubclass(subtype: Type[Any], supertype: Type[Any]) -> bool:
         >>> generic_issubclass(Sequence[Base], List[Base])     # False - concrete from abstract
         >>> generic_issubclass(Union[List[int], Set[int]], Iterable[int])  # True
     """
+    # Handle None/invalid inputs
+    if subtype is None or supertype is None:
+        return False
+
     # Special case: Optional[T] is exactly Union[T, None]
     if _is_optional_type(subtype) and _is_union_type(supertype):
         super_args = get_args(supertype)
