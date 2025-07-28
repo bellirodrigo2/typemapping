@@ -50,7 +50,7 @@ def test_list() -> None:
     assert arg.istype(List[str])
     assert arg.istype(List_t[str])
     if TEST_TYPE:
-        assert arg.istype(list[str])
+        assert arg.istype(list[str]) #type:ignore
     assert arg.istype(Annotated[List_t[str], "foobar"])
     assert not arg.istype(List[int])
 
@@ -60,7 +60,7 @@ def test_dict() -> None:
     assert arg.istype(Dict[str, int])
     assert arg.istype(Dict_t[str, int])
     if TEST_TYPE:
-        assert arg.istype(dict[str, int])
+        assert arg.istype(dict[str, int])  #type:ignore
     assert arg.istype(Annotated[Dict[str, int], "foobar"])
 
 
@@ -349,8 +349,8 @@ def func_def(arg1: str = "foobar", arg2: int = 12, arg3=True, arg4=None) -> None
 def func_ann(
     arg1: Annotated[str, "meta1"],
     arg2: Annotated[int, "meta1", 2],
-    arg3: Annotated[list[str], "meta1", 2, True],
-    arg4: Annotated[dict[str, Any], "meta1", 2, True] = {"foo": "bar"},
+    arg3: Annotated[List[str], "meta1", 2, True],
+    arg4: Annotated[Dict[str, Any], "meta1", 2, True] = {"foo": "bar"},
 ) -> None:
     pass
 
