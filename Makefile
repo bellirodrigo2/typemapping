@@ -1,4 +1,4 @@
-.PHONY: install install_dev test lint format build clean
+.PHONY: install install_dev test lint format build clean test_cov_missing test_coverage lint_fix test_cov_py38  test_cov_py312 test_cov_combined
 
 install:
 	@echo "Instaling dependencies..."
@@ -72,6 +72,10 @@ format:
 build:
 	@echo "Building package ..."
 	python -m build
+
+upload_pypi: build
+	@echo "Uploading package to pypi ..."
+	twine upload dist/*
 
 clean:
 	@echo "Cleaning cache and build/dist related files..."

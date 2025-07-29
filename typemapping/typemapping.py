@@ -610,61 +610,59 @@ def get_func_args(
 
 # ===== FIELD TYPE UTILITIES =====
 
-
 def get_field_type_(
     tgt: Type[Any],
     fieldname: str,
     localns: Optional[Dict[str, Any]] = None,
 ) -> Optional[Any]:
     """
-    Get field type from various sources.
+    Get field type from various sources, incluindo anotações herdadas em Python 3.8.
 
-    This function tries multiple strategies to find type information:
-    1. Class-level type hints
-    2. __init__ method type hints
-    3. Property return type hints
-    4. Method return type hints
+    Estratégias de busca:
+    1. Anotações de classe (percorrendo __mro__ para herança)
+    2. Anotações de __init__  (percorrendo __mro__)
+    3. Propriedades (return)
+    4. Métodos (return)
     """
-    # Try class-level type hints first
-    try:
-        cls_th = get_safe_type_hints(tgt, localns)
-        if fieldname in cls_th:
-            return cls_th[fieldname]
-    except (TypeError, AttributeError):
-        pass
+    # 1) Class‑level, incluindo bases
+    for base in getattr(tgt, "__mro__", (tgt,)):
+        try:
+            hints = get_safe_type_hints(base, localns)
+            if fieldname in hints:
+                return hints[fieldname]
+        except (TypeError, AttributeError):
+            continue
 
-    # Try __init__ method type hints
-    try:
-        init_method = getattr(tgt, "__init__", None)
-        if init_method and init_method is not object.__init__:
-            init_th = get_safe_type_hints(init_method, localns)
-            if fieldname in init_th:
-                return init_th[fieldname]
-    except (TypeError, AttributeError):
-        pass
+    # 2) __init__ nas bases
+    for base in getattr(tgt, "__mro__", (tgt,)):
+        try:
+            init = getattr(base, "__init__", None)
+            if init is not None and init is not object.__init__:
+                init_hints = get_safe_type_hints(init, localns)
+                if fieldname in init_hints:
+                    return init_hints[fieldname]
+        except (TypeError, AttributeError):
+            continue
 
-    # Try to get attribute and infer type
+    # 3) Propriedade ou método
     try:
         attr = getattr(tgt, fieldname, None)
         if attr is None:
             return None
 
-        # Handle properties
         if isinstance(attr, property):
-            try:
-                if attr.fget:
-                    prop_th = get_safe_type_hints(attr.fget, localns)
-                    if "return" in prop_th:
-                        return prop_th["return"]
-            except (TypeError, AttributeError):
-                pass
+            fget = attr.fget
+            if fget:
+                try:
+                    prop_hints = get_safe_type_hints(fget, localns)
+                    return prop_hints.get("return")
+                except (TypeError, AttributeError):
+                    pass
 
-        # Handle regular methods
-        elif callable(attr) and hasattr(attr, "__annotations__"):
+        elif callable(attr):
             try:
-                method_th = get_safe_type_hints(attr, localns)
-                if "return" in method_th:
-                    return method_th["return"]
+                meth_hints = get_safe_type_hints(attr, localns)
+                return meth_hints.get("return")
             except (TypeError, AttributeError):
                 pass
 
@@ -679,13 +677,13 @@ def get_field_type(
     fieldname: str,
     localns: Optional[Dict[str, Any]] = None,
 ) -> Optional[Type[Any]]:
-    """Get field type, unwrapping Annotated if present."""
+    """
+    Envolve get_field_type_ para remover Annotated[T, ...] se presente.
+    """
     btype = get_field_type_(tgt, fieldname, localns)
     if btype is not None and is_annotated_type(btype):
-        # Use our compat layer for Python 3.8 support
-        btype = strip_annotated(btype)
+        return strip_annotated(btype)
     return btype
-
 
 # ===== CONVENIENCE FUNCTIONS FOR FRAMEWORK INTEGRATION =====
 
