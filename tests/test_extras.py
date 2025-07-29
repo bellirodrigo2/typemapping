@@ -15,7 +15,7 @@ from typemapping import (
     get_func_args,
     get_return_type,
     get_safe_type_hints,
-    is_Annotated,
+    is_annotated_type,
     is_equal_type,
     map_dataclass_fields,
     map_func_args,
@@ -314,13 +314,13 @@ def testdefensive_issubclass_invalid_types():
 
 def test_is_annotated_none():
     """Test is_Annotated with None"""
-    assert not is_Annotated(None)
+    assert not is_annotated_type(None)
 
 
 def test_is_annotated_nested():
     """Test is_Annotated with nested annotations"""
     nested = Annotated[Annotated[str, "inner"], "outer"]
-    assert is_Annotated(nested)
+    assert is_annotated_type(nested)
 
 
 # ------------ Test specific mapping functions directly ------------

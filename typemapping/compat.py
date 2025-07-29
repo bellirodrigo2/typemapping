@@ -6,7 +6,7 @@ work consistently across Python versions, especially for Annotated types.
 """
 
 import sys
-from typing import Any, Tuple, Type
+from typing import Any, Tuple, Type, cast
 from typing import get_args as typing_get_args
 from typing import get_origin as typing_get_origin
 
@@ -15,14 +15,14 @@ if sys.version_info >= (3, 9):
     from typing import Annotated as typing_Annotated
     from typing import _AnnotatedAlias  # type: ignore
 else:
-    typing_Annotated = None
-    _AnnotatedAlias = None
+    typing_Annotated = None # pragma: no cover
+    _AnnotatedAlias = None # pragma: no cover
 
 try:
     import typing_extensions
 
     typing_extensions_Annotated = getattr(typing_extensions, "Annotated", None)
-    if sys.version_info < (3, 9):
+    if sys.version_info < (3, 9): # pragma: no cover
         # In Python 3.8, we need the internal class
         try:
             from typing_extensions import (
@@ -37,7 +37,7 @@ except ImportError:
     typing_extensions_AnnotatedAlias = None
 
 
-def _debug_annotated(tp: Type[Any]) -> None:
+def _debug_annotated(tp: Type[Any]) -> None: # pragma: no cover
     """Debug function to inspect Annotated type structure in Python 3.8."""
     print(f"Type: {tp}")
     print(f"Type repr: {repr(tp)}")
@@ -99,39 +99,34 @@ def get_args(tp: Type[Any]) -> Tuple[Any, ...]:
     This function ensures consistent behavior across Python versions, especially
     for Annotated types from typing_extensions in Python 3.8.
     """
-    # First try standard get_args
+    # Special handling for Annotated in Python 3.8 BEFORE trying standard get_args
+    if sys.version_info < (3, 9) and is_annotated_type(tp):
+        # For typing_extensions._AnnotatedAlias in Python 3.8
+        if hasattr(tp, "__origin__") and hasattr(tp, "__metadata__"):
+            origin = tp.__origin__
+            metadata = tp.__metadata__
+            # Ensure metadata is a tuple
+            if not isinstance(metadata, tuple):
+                metadata = (metadata,)
+            return (origin,) + metadata
+
+    # Now try standard get_args
     args = typing_get_args(tp)
     if args:
-        return args
-
-    # Special handling for Annotated in Python 3.8
-    if sys.version_info < (3, 9):
-        # For typing_extensions._AnnotatedAlias in Python 3.8
-        if hasattr(tp, "__class__") and tp.__class__.__name__ == "_AnnotatedAlias":
-            # The structure in Python 3.8 for Annotated is different
-            # We need to reconstruct it properly
-            if hasattr(tp, "__origin__") and hasattr(tp, "__metadata__"):
-                origin = tp.__origin__
+        # For Annotated types in Python 3.8, typing.get_args only returns the origin
+        # We need to check if this is an Annotated type and add metadata
+        if sys.version_info < (3, 9) and is_annotated_type(tp) and len(args) == 1:
+            # This is likely an Annotated type where get_args only returned the origin
+            if hasattr(tp, "__metadata__"):
                 metadata = tp.__metadata__
-                # Ensure metadata is a tuple
                 if not isinstance(metadata, tuple):
                     metadata = (metadata,)
-                return (origin,) + metadata
+                return args + metadata
+        return args
 
-        # Check if it's an Annotated type by checking for __metadata__
-        if hasattr(tp, "__metadata__") and hasattr(tp, "__origin__"):
-            # For Annotated[T, metadata...], __origin__ is T and __metadata__ contains the metadata
-            base_type = tp.__origin__
-            metadata = tp.__metadata__
-            # Return (base_type, *metadata) to match Python 3.9+ behavior
-            if isinstance(metadata, tuple):
-                return (base_type,) + metadata
-            else:
-                return (base_type, metadata)
-
-        # Also check __args__ attribute which some types have
-        if hasattr(tp, "__args__"):
-            return tp.__args__
+    # Fallback checks for other types
+    if hasattr(tp, "__args__"):
+        return cast(Tuple[Any],tp.__args__)
 
     return ()
 
@@ -173,8 +168,8 @@ def strip_annotated(tp: Type[Any]) -> Type[Any]:
     if is_annotated_type(tp):
         args = get_args(tp)
         if args:
-            return args[0]
-    return tp
+            tp= args[0]
+    return cast(Type[Any],tp)
 
 
 def get_annotated_metadata(tp: Type[Any]) -> Tuple[Any, ...]:
@@ -206,11 +201,16 @@ def is_annotated_class(cls: Any) -> bool:
 
     This is used to check if something IS the Annotated type constructor.
     """
+    # First check if cls is None to avoid the bug where None is typing_Annotated
+    if cls is None:
+        return False
+
     return (
         cls is typing_Annotated
         or cls is typing_extensions_Annotated
         or (
             sys.version_info < (3, 9)
+            and cls is not None  # Extra check to be safe
             and hasattr(cls, "__name__")
             and cls.__name__ == "Annotated"
             and hasattr(cls, "__class_getitem__")

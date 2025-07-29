@@ -96,6 +96,5 @@ from .type_check import (
     defensive_issubclass,
     extended_isinstance,
     generic_issubclass,
-    is_Annotated,
     is_equal_type,
 )

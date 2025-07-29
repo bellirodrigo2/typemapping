@@ -30,6 +30,7 @@ from typing import (
     Type,
     TypeVar,
     Union,
+    cast,
     get_type_hints,
 )
 
@@ -38,14 +39,14 @@ from typemapping.compat import (
     get_annotated_metadata,
     get_args,
     get_origin,
+    is_annotated_type,
     strip_annotated,
 )
 
 # Import our advanced type checking functions
-from typemapping.type_check import (
+from typemapping.type_check import (  # is_Annotated,
     extended_isinstance,
     generic_issubclass,
-    is_Annotated,
     is_equal_type,
 )
 
@@ -79,7 +80,9 @@ class VarTypeInfo:
     @property
     def origin(self) -> Optional[Type[Any]]:
         """Get the origin of the base type (e.g., list from List[int])."""
-        return get_origin(self.basetype)
+        if self.basetype is None:
+            return None
+        return cast(Optional[Type[Any]], get_origin(self.basetype))
 
     @property
     def args(self) -> Tuple[Any, ...]:
@@ -93,9 +96,9 @@ class VarTypeInfo:
         Uses our enhanced is_equal_type for precise comparison.
         """
         if arg is None or self.basetype is None:
-            return arg == self.basetype
+            return arg is self.basetype
 
-        if is_Annotated(arg):
+        if is_annotated_type(arg):
             return self.isequal(get_args(arg)[0])
 
         return is_equal_type(self.basetype, arg)
@@ -109,7 +112,7 @@ class VarTypeInfo:
         if tgttype is None or self.basetype is None:
             return False
 
-        if is_Annotated(tgttype):
+        if is_annotated_type(tgttype):
             # For Python 3.8 compatibility, we need to handle this carefully
             args = get_args(tgttype)
             if args:
@@ -228,7 +231,13 @@ def get_safe_type_hints(
         else:
             cls = None
 
+        # Get module globals
         globalns = _get_module_globals(obj.__module__)
+
+        # For functions, also include their actual module's namespace
+        if hasattr(obj, "__globals__"):
+            # Function has its own globals, merge them
+            globalns.update(obj.__globals__)
 
         # Add the class to global namespace for self-references
         if cls and inspect.isclass(cls):
@@ -261,8 +270,23 @@ def get_safe_type_hints(
         # Fallback to basic inspection if type hints fail
         try:
             if hasattr(obj, "__annotations__"):
-                annotations = obj.__annotations__.copy()
+                annotations: Dict[str, Any] = obj.__annotations__.copy()
                 # In Python 3.8, forward refs remain as strings in fallback
+                # Try to resolve them if we have the namespace
+                if globalns or localns:
+                    resolved = {}
+                    ns = {}
+                    if globalns:
+                        ns.update(globalns)
+                    if localns:
+                        ns.update(localns)
+
+                    for name, annotation in annotations.items():
+                        if isinstance(annotation, str) and annotation in ns:
+                            resolved[name] = ns[annotation]
+                        else:
+                            resolved[name] = annotation
+                    return resolved
                 return annotations
         except AttributeError:
             pass
@@ -352,7 +376,7 @@ def make_funcarg(
     basetype = tgttype
     extras = None
 
-    if type_to_check is not None and is_Annotated(type_to_check):
+    if type_to_check is not None and is_annotated_type(type_to_check):
         # Use our compat layer for Python 3.8 support
         basetype = strip_annotated(type_to_check)
         metadata = get_annotated_metadata(type_to_check)
@@ -400,7 +424,7 @@ def unwrap_partial(
 
 
 def map_init_field(
-    cls: type,
+    cls: Type[Any],
     bt_default_fallback: bool = True,
     localns: Optional[Dict[str, Any]] = None,
 ) -> List[VarTypeInfo]:
@@ -591,7 +615,7 @@ def get_field_type_(
     tgt: Type[Any],
     fieldname: str,
     localns: Optional[Dict[str, Any]] = None,
-) -> Optional[Type[Any]]:
+) -> Optional[Any]:
     """
     Get field type from various sources.
 
@@ -657,7 +681,7 @@ def get_field_type(
 ) -> Optional[Type[Any]]:
     """Get field type, unwrapping Annotated if present."""
     btype = get_field_type_(tgt, fieldname, localns)
-    if btype is not None and is_Annotated(btype):
+    if btype is not None and is_annotated_type(btype):
         # Use our compat layer for Python 3.8 support
         btype = strip_annotated(btype)
     return btype

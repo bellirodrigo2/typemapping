@@ -7,14 +7,11 @@ and issubclass, supporting generic types, variance, and runtime validation.
 
 import inspect
 import typing
-from typing import Any, Optional, Type, Union
+from abc import ABCMeta
+from typing import Any, Type, Union, cast
 
 # Import our compatibility layer
-from typemapping.compat import (
-    get_args,
-    get_origin,
-    is_annotated_type,
-)
+from typemapping.compat import get_args, get_origin, is_annotated_type
 from typemapping.origins import is_equivalent_origin
 
 # Handle Annotated imports for compatibility across Python versions
@@ -132,8 +129,18 @@ def generic_issubclass(subtype: Type[Any], supertype: Type[Any]) -> bool:
     if not sub_args and not super_args:
         return True
 
-    # If one has args and other doesn't, they're not compatible
-    if bool(sub_args) != bool(super_args):
+    # Special case: if supertype has TypeVar args but subtype doesn't,
+    # this is still valid (e.g., list <: Sequence where Sequence has T_co)
+    if not sub_args and super_args:
+        # Check if all super_args are TypeVars
+        from typing import TypeVar
+
+        if all(isinstance(arg, TypeVar) for arg in super_args):
+            return True
+        return False
+
+    # If subtype has args but supertype doesn't, they're not compatible
+    if sub_args and not super_args:
         return False
 
     # Both must have same number of type arguments
@@ -203,28 +210,6 @@ def extended_isinstance(obj: Any, type_hint: Type[Any]) -> bool:
 
     # Runtime validation of generic arguments
     return _validate_generic_args(obj, args, origin)
-
-
-def is_Annotated(bt: Optional[Type[Any]]) -> bool:
-    """
-    Check if type is Annotated, handling None case and version compatibility.
-
-    This function detects Annotated types from both typing and typing_extensions
-    modules, providing compatibility across different Python versions.
-
-    Args:
-        bt: Type to check (can be None)
-
-    Returns:
-        True if type is Annotated[T, ...], False otherwise
-
-    Examples:
-        >>> from typing import Annotated
-        >>> is_Annotated(Annotated[int, "positive"])  # True
-        >>> is_Annotated(int)  # False
-        >>> is_Annotated(None)  # False
-    """
-    return is_annotated_type(bt)
 
 
 def is_equal_type(t1: Type[Any], t2: Type[Any]) -> bool:
@@ -365,7 +350,7 @@ def _is_optional_type(t: Type[Any]) -> bool:
 def _get_optional_inner_type(t: Type[Any]) -> Type[Any]:
     """Get the inner type from Optional[T]."""
     args = get_args(t)
-    return next(arg for arg in args if arg is not type(None))
+    return cast(Type[Any], next(arg for arg in args if arg is not type(None)))
 
 
 def _is_subtype_origin(sub_origin: Type[Any], super_origin: Type[Any]) -> bool:
@@ -456,7 +441,7 @@ def _is_collection_specialization_subtype(
         specialization_map[chainmap_type] = dict
 
     if sub_origin in specialization_map:
-        base_type = specialization_map[sub_origin]
+        base_type = specialization_map[cast(ABCMeta, sub_origin)]
         return base_type == super_origin or is_equivalent_origin(
             base_type, super_origin
         )
@@ -647,7 +632,7 @@ def _is_abstraction_compatible(sub_origin: Type[Any], super_origin: Type[Any]) -
 
     # Check if sub_origin can be a subtype of super_origin
     if sub_origin in concrete_to_abstract:
-        abstract_set = concrete_to_abstract[sub_origin]
+        abstract_set = concrete_to_abstract[cast(ABCMeta, sub_origin)]
         return super_origin in abstract_set  # type: ignore
 
     # If sub_origin not in mapping, check if they're the same

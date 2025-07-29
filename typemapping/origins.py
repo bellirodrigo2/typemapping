@@ -75,6 +75,15 @@ except ImportError:
     from typing import Sequence as AbcSequence  # type: ignore
     from typing import Set as AbcSet  # type: ignore
 
+# Import typing versions as well for compatibility
+from typing import Container as TypingContainer
+from typing import Iterable as TypingIterable
+from typing import Mapping as TypingMapping
+from typing import MutableMapping as TypingMutableMapping
+from typing import MutableSequence as TypingMutableSequence
+from typing import Sequence as TypingSequence
+from typing import Set as TypingSet
+
 # ===== UNIFIED TYPE MAPPINGS =====
 
 # All Counter types (both concrete and typing versions) - ORDERED LIST
@@ -98,53 +107,172 @@ ALL_DEFAULTDICT_TYPES = list(
 # Complete mapping of type equivalences
 _EQUIV_ORIGIN: Dict[Type[Any], Collection[Type[Any]]] = {
     # Sequences
-    list: {list, List, AbcSequence, MutableSequence, AbcIterable, AbcContainer},
-    tuple: {tuple, Tuple, AbcSequence, AbcIterable, AbcContainer},  # type:ignore
+    list: {
+        list,
+        List,
+        AbcSequence,
+        TypingSequence,
+        MutableSequence,
+        TypingMutableSequence,
+        AbcIterable,
+        TypingIterable,
+        AbcContainer,
+        TypingContainer,
+    },
+    tuple: {
+        tuple,
+        Tuple,  # type: ignore[arg-type]
+        AbcSequence,
+        TypingSequence,
+        AbcIterable,
+        TypingIterable,
+        AbcContainer,
+        TypingContainer,
+    },  # type:ignore
     # Sets
-    set: {set, Set, AbcSet, MutableSet, AbcIterable, AbcContainer},
-    frozenset: {frozenset, FrozenSet, AbcSet, AbcIterable, AbcContainer},
+    set: {
+        set,
+        Set,
+        TypingSet,
+        AbcSet,
+        MutableSet,
+        AbcIterable,
+        TypingIterable,
+        AbcContainer,
+        TypingContainer,
+    },
+    frozenset: {
+        frozenset,
+        FrozenSet,
+        AbcSet,
+        TypingSet,
+        AbcIterable,
+        TypingIterable,
+        AbcContainer,
+        TypingContainer,
+    },
     # Mappings
-    dict: {dict, Dict, AbcMapping, AbcMutableMapping, AbcContainer},
+    dict: {
+        dict,
+        Dict,
+        AbcMapping,
+        TypingMapping,
+        AbcMutableMapping,
+        TypingMutableMapping,
+        AbcContainer,
+        TypingContainer,
+    },
     # Basic specializations
-    defaultdict: {defaultdict, dict, Dict, AbcMapping, AbcMutableMapping, AbcContainer},
-    deque: {deque, MutableSequence, AbcSequence, AbcIterable, AbcContainer},
+    defaultdict: {
+        defaultdict,
+        dict,
+        Dict,
+        AbcMapping,
+        TypingMapping,
+        AbcMutableMapping,
+        TypingMutableMapping,
+        AbcContainer,
+        TypingContainer,
+    },
+    deque: {
+        deque,
+        MutableSequence,
+        TypingMutableSequence,
+        AbcSequence,
+        TypingSequence,
+        AbcIterable,
+        TypingIterable,
+        AbcContainer,
+        TypingContainer,
+    },
     # Abstract types enable compatibility
     AbcSequence: {
         deque,
         list,
         tuple,
         AbcSequence,
+        TypingSequence,
         MutableSequence,
+        TypingMutableSequence,
         AbcIterable,
+        TypingIterable,
         AbcContainer,
+        TypingContainer,
+    },
+    TypingSequence: {
+        deque,
+        list,
+        tuple,
+        AbcSequence,
+        TypingSequence,
+        MutableSequence,
+        TypingMutableSequence,
+        AbcIterable,
+        TypingIterable,
+        AbcContainer,
+        TypingContainer,
     },
     # Callables
     type(lambda: None): {type(lambda: None), Callable, AbcCallable},  # type:ignore
 }
 
 # Add all Counter variants to mapping - DETERMINISTIC ORDER
-counter_equiv_set = {dict, Dict, AbcMapping, AbcMutableMapping, AbcContainer}
+counter_equiv_set = {
+    dict,
+    Dict,
+    AbcMapping,
+    TypingMapping,
+    AbcMutableMapping,
+    TypingMutableMapping,
+    AbcContainer,
+    TypingContainer,
+}
 for counter_type in ALL_COUNTER_TYPES:
     counter_equiv_set.add(counter_type)  # type: ignore
 for counter_type in ALL_COUNTER_TYPES:  # Iterates in deterministic order
     _EQUIV_ORIGIN[counter_type] = counter_equiv_set.copy()
 
 # Add all OrderedDict variants to mapping - DETERMINISTIC ORDER
-ordereddict_equiv_set = {dict, Dict, AbcMapping, AbcMutableMapping, AbcContainer}
+ordereddict_equiv_set = {
+    dict,
+    Dict,
+    AbcMapping,
+    TypingMapping,
+    AbcMutableMapping,
+    TypingMutableMapping,
+    AbcContainer,
+    TypingContainer,
+}
 for ordereddict_type in ALL_ORDEREDDICT_TYPES:
     ordereddict_equiv_set.add(ordereddict_type)  # type: ignore
 for ordereddict_type in ALL_ORDEREDDICT_TYPES:  # Iterates in deterministic order
     _EQUIV_ORIGIN[ordereddict_type] = ordereddict_equiv_set.copy()
 
 # Add all ChainMap variants to mapping - DETERMINISTIC ORDER
-chainmap_equiv_set = {AbcMapping, AbcMutableMapping, AbcContainer}
+chainmap_equiv_set = {
+    AbcMapping,
+    TypingMapping,
+    AbcMutableMapping,
+    TypingMutableMapping,
+    AbcContainer,
+    TypingContainer,
+}
 for chainmap_type in ALL_CHAINMAP_TYPES:
     chainmap_equiv_set.add(chainmap_type)  # type: ignore
 for chainmap_type in ALL_CHAINMAP_TYPES:  # Iterates in deterministic order
     _EQUIV_ORIGIN[chainmap_type] = chainmap_equiv_set.copy()
 
 # Add all DefaultDict variants to mapping - DETERMINISTIC ORDER
-defaultdict_equiv_set = {dict, Dict, AbcMapping, AbcMutableMapping, AbcContainer}
+defaultdict_equiv_set = {
+    dict,
+    Dict,
+    AbcMapping,
+    TypingMapping,
+    AbcMutableMapping,
+    TypingMutableMapping,
+    AbcContainer,
+    TypingContainer,
+}
 for defaultdict_type in ALL_DEFAULTDICT_TYPES:
     defaultdict_equiv_set.add(defaultdict_type)  # type: ignore
 for defaultdict_type in ALL_DEFAULTDICT_TYPES:  # Iterates in deterministic order
