@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
@@ -10,19 +11,30 @@ if TYPE_CHECKING:
 
 # Simulação de múltiplos casos
 
+
 class Base:
     base: int
+
 
 class Middle(Base):
     mid: str
 
+
 class Derived(Middle):
     derived: float
+
 
 class InitModel:
     def __init__(self, a: str, b: int):
         self.a = a
         self.b = b
+
+
+class DerivedInit(InitModel):
+    def __init__(self, a: str, b: int, c: bool):
+        super().__init__(a, b)
+        self.c = c
+
 
 class MixedModel:
     mixed: int
@@ -30,40 +42,64 @@ class MixedModel:
     def __init__(self, x: float):
         self.x = x
 
+
 class PropertyWithReturn:
     @property
     def prop(self) -> datetime:
         return datetime.now()
+
 
 class PropertyNoReturn:
     @property
     def prop(self):
         return "no return hint"
 
+
 class MethodWithReturn:
     def call(self) -> bool:
         return True
+
 
 class MethodNoReturn:
     def call(self):
         return None
 
+
 class NoAnnotations:
     pass
+
 
 class FallbackModel:
     field = None  # No annotation
 
+
 class ForwardRefModel:
     ref: "User"
+
 
 class Nested:
     class Inner:
         name: str
 
+
 class BuiltInWrapper:
     def __init__(self, items: list):
         self.items = items
+
+
+@dataclass
+class DataClass(Derived):
+    name: str
+
+
+@dataclass
+class DataBase:
+    name: str
+
+
+@dataclass
+class DataDerived(DataBase):
+    age: int
 
 
 @pytest.mark.parametrize(
@@ -74,6 +110,9 @@ class BuiltInWrapper:
         (Derived, "derived", float),
         (InitModel, "a", str),
         (InitModel, "b", int),
+        (DerivedInit, "a", str),
+        (DerivedInit, "b", int),
+        (DerivedInit, "c", bool),
         (MixedModel, "mixed", int),
         (MixedModel, "x", float),
         (PropertyWithReturn, "prop", datetime),
@@ -86,7 +125,14 @@ class BuiltInWrapper:
         (Nested.Inner, "name", str),
         (BuiltInWrapper, "items", list),
         (BuiltInWrapper, "missing", None),
-    ]
+        (DataClass, "base", int),
+        (DataClass, "mid", str),
+        (DataClass, "derived", float),
+        (DataClass, "name", str),
+        (DataBase, "name", str),
+        (DataDerived, "name", str),
+        (DataDerived, "age", int),
+    ],
 )
 def test_get_field_type_(cls, field, expected_type):
     typ = get_field_type_(cls, field)

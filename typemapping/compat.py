@@ -15,14 +15,14 @@ if sys.version_info >= (3, 9):
     from typing import Annotated as typing_Annotated
     from typing import _AnnotatedAlias  # type: ignore
 else:
-    typing_Annotated = None # pragma: no cover
-    _AnnotatedAlias = None # pragma: no cover
+    typing_Annotated = None  # pragma: no cover
+    _AnnotatedAlias = None  # pragma: no cover
 
 try:
     import typing_extensions
 
     typing_extensions_Annotated = getattr(typing_extensions, "Annotated", None)
-    if sys.version_info < (3, 9): # pragma: no cover
+    if sys.version_info < (3, 9):  # pragma: no cover
         # In Python 3.8, we need the internal class
         try:
             from typing_extensions import (
@@ -37,7 +37,7 @@ except ImportError:
     typing_extensions_AnnotatedAlias = None
 
 
-def _debug_annotated(tp: Type[Any]) -> None: # pragma: no cover
+def _debug_annotated(tp: Type[Any]) -> None:  # pragma: no cover
     """Debug function to inspect Annotated type structure in Python 3.8."""
     print(f"Type: {tp}")
     print(f"Type repr: {repr(tp)}")
@@ -126,7 +126,7 @@ def get_args(tp: Type[Any]) -> Tuple[Any, ...]:
 
     # Fallback checks for other types
     if hasattr(tp, "__args__"):
-        return cast(Tuple[Any],tp.__args__)
+        return cast(Tuple[Any], tp.__args__)
 
     return ()
 
@@ -168,8 +168,8 @@ def strip_annotated(tp: Type[Any]) -> Type[Any]:
     if is_annotated_type(tp):
         args = get_args(tp)
         if args:
-            tp= args[0]
-    return cast(Type[Any],tp)
+            tp = args[0]
+    return cast(Type[Any], tp)
 
 
 def get_annotated_metadata(tp: Type[Any]) -> Tuple[Any, ...]:

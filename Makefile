@@ -69,7 +69,7 @@ format:
 	black .
 	isort .
 
-build:
+build: clean
 	@echo "Building package ..."
 	python -m build
 

@@ -1,6 +1,6 @@
 [project]
 name = "typemapping"
-version = "0.1.3"
+version = "0.1.4"
 description = "Advanced type compatibility and checking system for Python"
 authors = [
     { name = "rodbell", email = "bellirodrigo2@gmail.com" }

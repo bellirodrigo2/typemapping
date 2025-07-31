@@ -201,6 +201,61 @@ def _get_module_globals(module_name: str) -> Dict[str, Any]:
         return {}
 
 
+def is_safe_lambda(func: Callable[..., Any]) -> bool:
+    """
+    Check if a lambda function is safe to execute (no parameters, simple body).
+    Safe lambdas are those without parameters that we can execute without side effects.
+    """
+    try:
+        if not (inspect.isfunction(func) and func.__name__ == "<lambda>"):
+            return False
+
+        sig = inspect.signature(func)
+        # Check if lambda has no parameters
+        return len(sig.parameters) == 0
+    except (ValueError, TypeError):
+        return False
+
+
+def try_execute_lambda(func: Callable[..., Any]) -> Tuple[bool, Optional[Any]]:
+    """Versão segura que só executa lambdas isolados."""
+    if not is_safe_lambda(func):
+        return False, None
+
+    code = func.__code__
+
+    # Rejects if lambda has access to closure variables and globals
+    if code.co_names or code.co_freevars:
+        return False, None
+
+    try:
+        result = func()
+        return True, result
+    except Exception:
+        return False, None
+
+
+def infer_lambda_return_type(func: Callable[..., Any]) -> Optional[Type[Any]]:
+    """
+    Infer the return type of a lambda by executing it.
+
+    For simple lambdas without parameters, we try to execute them safely.
+    For lambdas with parameters, we cannot infer the type without execution.
+    """
+    if not (inspect.isfunction(func) and func.__name__ == "<lambda>"):
+        return None
+
+    # Try to execute parameterless lambdas
+    success, result = try_execute_lambda(func)
+    if success:
+        # Execution succeeded, return the type of the result
+        # This correctly handles None returns
+        return type(result)
+
+    # Execution failed or lambda has parameters
+    return None
+
+
 def get_safe_type_hints(
     obj: Any, localns: Optional[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
@@ -212,7 +267,18 @@ def get_safe_type_hints(
     - Self references in class methods
     - Nested classes
     - Module-level type resolution
+    - Lambda functions (NEW!)
+    - Python 3.8 compatibility with None types
     """
+
+    # For lambdas, we can't get type hints the normal way
+    if inspect.isfunction(obj) and obj.__name__ == "<lambda>":
+        # Try to infer return type for lambdas
+        return_type = infer_lambda_return_type(obj)
+        if return_type is not None:
+            return {"return": return_type}
+        return {}
+
     try:
         if inspect.isclass(obj):
             cls: Optional[Any] = obj
@@ -222,7 +288,11 @@ def get_safe_type_hints(
             cls = obj
             for part in qualname_parts[:-1]:
                 try:
-                    cls = getattr(sys.modules[obj.__module__], part, None)
+                    module = sys.modules.get(obj.__module__)
+                    if module is None:
+                        cls = None
+                        break
+                    cls = getattr(module, part, None)
                     if cls is None:
                         break
                 except (AttributeError, KeyError):
@@ -231,8 +301,13 @@ def get_safe_type_hints(
         else:
             cls = None
 
-        # Get module globals
-        globalns = _get_module_globals(obj.__module__)
+        # Get module globals safely
+        globalns = {}
+        if hasattr(obj, "__module__") and obj.__module__ in sys.modules:
+            try:
+                globalns = _get_module_globals(obj.__module__)
+            except Exception:
+                pass
 
         # For functions, also include their actual module's namespace
         if hasattr(obj, "__globals__"):
@@ -249,9 +324,11 @@ def get_safe_type_hints(
                     if i == len(parts) - 1:
                         break
                     try:
-                        nested_cls = getattr(sys.modules[obj.__module__], part, None)
-                        if nested_cls and inspect.isclass(nested_cls):
-                            globalns[part] = nested_cls
+                        module = sys.modules.get(obj.__module__)
+                        if module:
+                            nested_cls = getattr(module, part, None)
+                            if nested_cls and inspect.isclass(nested_cls):
+                                globalns[part] = nested_cls
                     except (AttributeError, KeyError):
                         pass
 
@@ -263,16 +340,28 @@ def get_safe_type_hints(
         if sys.version_info < (3, 9):
             globalns["NoneType"] = type(None)
 
-        return get_type_hints(
+        # Try to get type hints
+        hints = get_type_hints(
             obj, globalns=globalns, localns=localns, include_extras=True
         )
+
+        # Normalize None returns for consistency across Python versions
+        if "return" in hints and hints["return"] is None:
+            hints["return"] = type(None)
+
+        return hints
+
     except (NameError, AttributeError, TypeError, RecursionError):
         # Fallback to basic inspection if type hints fail
         try:
             if hasattr(obj, "__annotations__"):
-                annotations: Dict[str, Any] = obj.__annotations__.copy()
-                # In Python 3.8, forward refs remain as strings in fallback
-                # Try to resolve them if we have the namespace
+                # Safely access annotations
+                try:
+                    annotations: Dict[str, Any] = obj.__annotations__.copy()
+                except (AttributeError, TypeError):
+                    return {}
+
+                # Try to resolve forward refs if we have namespace
                 if globalns or localns:
                     resolved = {}
                     ns = {}
@@ -286,9 +375,18 @@ def get_safe_type_hints(
                             resolved[name] = ns[annotation]
                         else:
                             resolved[name] = annotation
+
+                    # Normalize None returns
+                    if "return" in resolved and resolved["return"] is None:
+                        resolved["return"] = type(None)
+
                     return resolved
-                return annotations
-        except AttributeError:
+                else:
+                    # Normalize None returns even in fallback
+                    if "return" in annotations and annotations["return"] is None:
+                        annotations["return"] = type(None)
+                    return annotations
+        except Exception:
             pass
         return {}
 
@@ -518,13 +616,21 @@ def map_model_fields(
 def map_return_type(
     func: Callable[..., Any], localns: Optional[Dict[str, Any]] = None
 ) -> VarTypeInfo:
-    """Map function return type."""
+    """
+    Map function return type, with special handling for lambdas.
+
+    This version is lambda-friendly and attempts to infer return types
+    for simple parameterless lambdas.
+    """
     sig = inspect.signature(func)
     hints = get_safe_type_hints(func, localns)
     raw_return_type = hints.get("return", sig.return_annotation)
 
     if raw_return_type is inspect.Signature.empty:
         raw_return_type = None
+
+    # For lambdas, get_safe_type_hints already handles type inference
+    # No need to call infer_lambda_return_type again here
 
     # Handle special case for None return type
     if raw_return_type is None and "return" in hints:
@@ -533,8 +639,11 @@ def map_return_type(
         if "return" in func_annotations and func_annotations["return"] is None:
             raw_return_type = type(None)
 
+    # Use function name, or a descriptive name for lambdas
+    func_name = func.__name__ if func.__name__ != "<lambda>" else "lambda_function"
+
     return make_funcarg(
-        name=func.__name__,
+        name=func_name,
         tgttype=raw_return_type,
         annotation=raw_return_type,
     )
@@ -610,6 +719,7 @@ def get_func_args(
 
 # ===== FIELD TYPE UTILITIES =====
 
+
 def get_field_type_(
     tgt: Type[Any],
     fieldname: str,
@@ -684,6 +794,7 @@ def get_field_type(
     if btype is not None and is_annotated_type(btype):
         return strip_annotated(btype)
     return btype
+
 
 # ===== CONVENIENCE FUNCTIONS FOR FRAMEWORK INTEGRATION =====
 
