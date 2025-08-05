@@ -66,19 +66,19 @@ def generic_issubclass(subtype: Type[Any], supertype: Type[Any]) -> bool:
         return False
 
     # Special case: Optional[T] is exactly Union[T, None]
-    if _is_optional_type(subtype) and _is_union_type(supertype):
+    if is_optional_type(subtype) and _is_union_type(supertype):
         super_args = get_args(supertype)
         if len(super_args) == 2 and type(None) in super_args:
             # Both are Union[T, None] forms - check if inner types match
-            sub_inner = _get_optional_inner_type(subtype)
+            sub_inner = get_optional_inner_type(subtype)
             super_inner = next(arg for arg in super_args if arg is not type(None))
             return generic_issubclass(sub_inner, super_inner)
 
-    if _is_optional_type(supertype) and _is_union_type(subtype):
+    if is_optional_type(supertype) and _is_union_type(subtype):
         sub_args = get_args(subtype)
         if len(sub_args) == 2 and type(None) in sub_args:
             # Both are Union[T, None] forms - check if inner types match
-            super_inner = _get_optional_inner_type(supertype)
+            super_inner = get_optional_inner_type(supertype)
             sub_inner = next(arg for arg in sub_args if arg is not type(None))
             return generic_issubclass(sub_inner, super_inner)
 
@@ -98,21 +98,21 @@ def generic_issubclass(subtype: Type[Any], supertype: Type[Any]) -> bool:
     super_args = get_args(supertype)
 
     # Handle Optional types (Union[T, None])
-    if _is_optional_type(supertype):
-        super_inner = _get_optional_inner_type(supertype)
-        if _is_optional_type(subtype):
-            sub_inner = _get_optional_inner_type(subtype)
+    if is_optional_type(supertype):
+        super_inner = get_optional_inner_type(supertype)
+        if is_optional_type(subtype):
+            sub_inner = get_optional_inner_type(subtype)
             return generic_issubclass(sub_inner, super_inner)
         else:
             # T <: Optional[U] if T <: U
             return generic_issubclass(subtype, super_inner)
 
-    if _is_optional_type(subtype):
+    if is_optional_type(subtype):
         # Optional[T] <: U cases
-        if _is_optional_type(supertype):
+        if is_optional_type(supertype):
             # Optional[T] <: Optional[U] if T <: U
-            sub_inner = _get_optional_inner_type(subtype)
-            super_inner = _get_optional_inner_type(supertype)
+            sub_inner = get_optional_inner_type(subtype)
+            super_inner = get_optional_inner_type(supertype)
             return generic_issubclass(sub_inner, super_inner)
         elif _is_union_type(supertype):
             # Optional[T] <: Union[A, B, ...] if Optional[T] is compatible with union
@@ -189,10 +189,10 @@ def extended_isinstance(obj: Any, type_hint: Type[Any]) -> bool:
         return any(extended_isinstance(obj, arg) for arg in get_args(type_hint))
 
     # Handle Optional types
-    if _is_optional_type(type_hint):
+    if is_optional_type(type_hint):
         if obj is None:
             return True
-        inner_type = _get_optional_inner_type(type_hint)
+        inner_type = get_optional_inner_type(type_hint)
         return extended_isinstance(obj, inner_type)
 
     # Get the origin type and args
@@ -339,7 +339,7 @@ def _is_union_type(t: Type[Any]) -> bool:
     return get_origin(t) is Union
 
 
-def _is_optional_type(t: Type[Any]) -> bool:
+def is_optional_type(t: Type[Any]) -> bool:
     """Check if type is Optional[T] (Union[T, None])."""
     if not _is_union_type(t):
         return False
@@ -347,7 +347,7 @@ def _is_optional_type(t: Type[Any]) -> bool:
     return len(args) == 2 and type(None) in args
 
 
-def _get_optional_inner_type(t: Type[Any]) -> Type[Any]:
+def get_optional_inner_type(t: Type[Any]) -> Type[Any]:
     """Get the inner type from Optional[T]."""
     args = get_args(t)
     return cast(Type[Any], next(arg for arg in args if arg is not type(None)))

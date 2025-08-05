@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from typemapping.typemapping import get_field_type_
+from typemapping.typemapping import get_field_type
 
 if TYPE_CHECKING:
     User = Any
@@ -101,6 +101,17 @@ class DataBase:
 class DataDerived(DataBase):
     age: int
 
+class BaseModel:
+    base_field: str = "base_value"
+class ExtendedModel(BaseModel):
+    extended_field: int = 10
+    def __init__(self, dynamic_value: str) -> None:
+        self.dynamic_value = dynamic_value
+    @property
+    def computed_field(self) -> str:
+        return f"computed_{self.dynamic_value}"
+    def method_field(self) -> str:
+        return f"method_{self.dynamic_value}"
 
 @pytest.mark.parametrize(
     "cls, field, expected_type",
@@ -132,10 +143,16 @@ class DataDerived(DataBase):
         (DataBase, "name", str),
         (DataDerived, "name", str),
         (DataDerived, "age", int),
+        (BaseModel, "base_field", str),
+        (ExtendedModel, "base_field", str),
+        (ExtendedModel, "extended_field", int),
+        (ExtendedModel, "dynamic_value", str),
+        (ExtendedModel, "computed_field", str),
+        (ExtendedModel, "method_field", str),
     ],
 )
 def test_get_field_type_(cls, field, expected_type):
-    typ = get_field_type_(cls, field)
+    typ = get_field_type(cls, field)
     if expected_type is Any:
         assert typ is not None
     else:

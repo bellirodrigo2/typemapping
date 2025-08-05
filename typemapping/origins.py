@@ -15,7 +15,6 @@ from collections import defaultdict, deque
 from typing import (
     Any,
     Callable,
-    Collection,
     Dict,
     FrozenSet,
     List,
@@ -104,8 +103,15 @@ ALL_DEFAULTDICT_TYPES = list(
     filter(None, [defaultdict, TypingDefaultDict])
 )  # concrete first
 
+def extend_equiv_otigin(equiv:Type[Any], add_type:Type[Any]) -> None:
+    """Helper to extend equivalence mapping."""
+    if equiv in _EQUIV_ORIGIN:
+        _EQUIV_ORIGIN[equiv].add(add_type)
+    else:
+        _EQUIV_ORIGIN[equiv] = {add_type}
+
 # Complete mapping of type equivalences
-_EQUIV_ORIGIN: Dict[Type[Any], Collection[Type[Any]]] = {
+_EQUIV_ORIGIN: Dict[Type[Any], Set[Type[Any]]] = {
     # Sequences
     list: {
         list,

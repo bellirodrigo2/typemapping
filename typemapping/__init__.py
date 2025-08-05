@@ -56,6 +56,9 @@ __all__ = [
     "is_annotated_type",
     "strip_annotated",
     "get_annotated_metadata",
+    "extend_equiv_otigin",
+    "is_optional_type",
+    "get_optional_inner_type",
 ]
 
 
@@ -87,6 +90,7 @@ from .compat import (
 from .origins import (
     are_args_compatible,
     debug_type_info,
+    extend_equiv_otigin,
     get_compatibility_chain,
     get_equivalent_origin,
     is_equivalent_origin,
@@ -96,5 +100,7 @@ from .type_check import (
     defensive_issubclass,
     extended_isinstance,
     generic_issubclass,
+    get_optional_inner_type,
     is_equal_type,
+    is_optional_type,
 )
