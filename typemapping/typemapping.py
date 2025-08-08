@@ -47,7 +47,9 @@ from typemapping.compat import (
 from typemapping.type_check import (  # is_Annotated,
     extended_isinstance,
     generic_issubclass,
+    get_optional_inner_type,
     is_equal_type,
+    is_optional_type,
 )
 
 # Python 3.8 compatibility - Field is not subscriptable
@@ -719,7 +721,6 @@ def get_func_args(
 
 # ===== FIELD TYPE UTILITIES =====
 
-
 def get_field_type_(
     tgt: Type[Any],
     fieldname: str,
@@ -794,6 +795,38 @@ def get_field_type(
     if btype is not None and is_annotated_type(btype):
         return strip_annotated(btype)
     return btype
+
+def get_nested_field_type(model: Type[Any], field_path: str) -> Optional[Type[Any]]:
+    """
+    Get the type of a nested field path like 'cls1.cls2.cls3'.
+    If any field in the path is Optional, the final type will be Optional.
+    """
+    if not field_path:
+        return None
+
+    # Simple case
+    if "." not in field_path:
+        return get_field_type(model, field_path)
+
+    fields = field_path.split(".")
+    current_type = model
+    is_path_optional = False
+
+    for field_name in fields:
+        if current_type is None:
+            return None
+
+        field_type = get_field_type(current_type, field_name)
+        if field_type is None:
+            return None
+
+        if is_optional_type(field_type):
+            is_path_optional = True
+            current_type = get_optional_inner_type(field_type)
+        else:
+            current_type = field_type
+
+    return Optional[current_type] if is_path_optional else current_type  # type: ignore
 
 
 # ===== CONVENIENCE FUNCTIONS FOR FRAMEWORK INTEGRATION =====
