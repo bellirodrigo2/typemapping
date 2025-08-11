@@ -1,4 +1,3 @@
-import asyncio
 from datetime import datetime
 from typing import Dict, List, Optional
 
@@ -10,6 +9,7 @@ from typemapping.typemapping import get_nested_field_type
 # Test Models
 class Address:
     postal_code: str
+
     def __init__(self, street: str, number: int, city: str, country: str):
         self.street: str = street
         self.number: int = number
@@ -81,7 +81,7 @@ class Company:
 def test_sigcheck_nested_fields_valid():
     """Test that valid nested field injections pass signature check."""
 
-    field_type_map={
+    field_type_map = {
         "name": str,
         "founded": int,
         "ceo.name": str,
@@ -92,20 +92,18 @@ def test_sigcheck_nested_fields_valid():
         "get_ceo.age": int,
         "ceo.address.get_full_address": str,
         "years_active": int,
-        "ceo.full_name": str,
-        "years_active": int,
         "ceo.address.postal_code": str,
         "ceo.full_name": str,
         "ceo.address.country": str,
-        "ceo.address.get_full_address": str,
         "get_ceo": Person,
-        "ceo.get_age": int,     
+        "ceo.get_age": int,
     }
-
 
     for field, expected_type in field_type_map.items():
         field_type = get_nested_field_type(Company, field)
-        assert field_type == expected_type, f"Field '{field}' expected type {expected_type}, got {field_type}"
+        assert (
+            field_type == expected_type
+        ), f"Field '{field}' expected type {expected_type}, got {field_type}"
 
 
 def test_sigcheck_nonexistent_fields():
@@ -118,7 +116,9 @@ def test_sigcheck_nonexistent_fields():
     ]
     for field in field_type_map:
         ftype = get_nested_field_type(Company, field)
-        assert ftype is None, f"Expected None for non-existent field '{field}', got {ftype}"
+        assert (
+            ftype is None
+        ), f"Expected None for non-existent field '{field}', got {ftype}"
 
 
 def test_inject_deep_nesting():
@@ -167,7 +167,10 @@ def test_inject_deep_nesting():
     }
     for field, expected_type in field_type_map.items():
         field_type = get_nested_field_type(ExtendedCompany, field)
-        assert field_type == expected_type, f"Field '{field}' expected type {expected_type}, got {field_type}"
+        assert (
+            field_type == expected_type
+        ), f"Field '{field}' expected type {expected_type}, got {field_type}"
+
 
 if __name__ == "__main__":
     # Run with pytest

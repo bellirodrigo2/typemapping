@@ -39,24 +39,7 @@ except ImportError:
 
 def _debug_annotated(tp: Type[Any]) -> None:  # pragma: no cover
     """Debug function to inspect Annotated type structure in Python 3.8."""
-    print(f"Type: {tp}")
-    print(f"Type repr: {repr(tp)}")
-    print(f"Type class: {tp.__class__}")
-    print(f"Type class name: {tp.__class__.__name__}")
-    print(f"Has __metadata__: {hasattr(tp, '__metadata__')}")
-    if hasattr(tp, "__metadata__"):
-        print(f"__metadata__: {tp.__metadata__}")
-    print(f"Has __origin__: {hasattr(tp, '__origin__')}")
-    if hasattr(tp, "__origin__"):
-        print(f"__origin__: {tp.__origin__}")
-    print(f"Has __args__: {hasattr(tp, '__args__')}")
-    if hasattr(tp, "__args__"):
-        print(f"__args__: {tp.__args__}")
-    print(f"Has _inst: {hasattr(tp, '_inst')}")
-    if hasattr(tp, "_inst"):
-        print(f"_inst: {tp._inst}")
-    print(f"typing.get_args result: {typing_get_args(tp)}")
-    print(f"typing.get_origin result: {typing_get_origin(tp)}")
+    pass
 
 
 def get_origin(tp: Type[Any]) -> Any:

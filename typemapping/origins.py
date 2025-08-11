@@ -103,12 +103,14 @@ ALL_DEFAULTDICT_TYPES = list(
     filter(None, [defaultdict, TypingDefaultDict])
 )  # concrete first
 
-def extend_equiv_otigin(equiv:Type[Any], add_type:Type[Any]) -> None:
+
+def extend_equiv_otigin(equiv: Type[Any], add_type: Type[Any]) -> None:
     """Helper to extend equivalence mapping."""
     if equiv in _EQUIV_ORIGIN:
         _EQUIV_ORIGIN[equiv].add(add_type)
     else:
         _EQUIV_ORIGIN[equiv] = {add_type}
+
 
 # Complete mapping of type equivalences
 _EQUIV_ORIGIN: Dict[Type[Any], Set[Type[Any]]] = {
@@ -375,16 +377,21 @@ def get_equivalent_origin(t: Type[Any]) -> Optional[Type[Any]]:
     return origin
 
 
-def are_args_compatible(t1: Type[Any], t2: Type[Any]) -> bool:
+def are_args_compatible(t1: Type[Any], t2: Type[Any], _depth: int = 0) -> bool:
     """
     Check if generic type arguments are compatible.
 
     Args:
         t1, t2: Generic types to compare arguments
+        _depth: Internal recursion depth counter
 
     Returns:
         True if arguments are compatible
     """
+    # Prevent infinite recursion
+    if _depth > 50:
+        return False
+
     args1, args2 = get_args(t1), get_args(t2)
 
     # If both have no args, they're compatible
@@ -400,15 +407,18 @@ def are_args_compatible(t1: Type[Any], t2: Type[Any]) -> bool:
         return False
 
     # Compare each argument recursively
-    return all(is_fully_compatible(arg1, arg2) for arg1, arg2 in zip(args1, args2))
+    return all(
+        is_fully_compatible(arg1, arg2, _depth + 1) for arg1, arg2 in zip(args1, args2)
+    )
 
 
-def is_fully_compatible(t1: Type[Any], t2: Type[Any]) -> bool:
+def is_fully_compatible(t1: Type[Any], t2: Type[Any], _depth: int = 0) -> bool:
     """
     Check full compatibility including generic type arguments.
 
     Args:
         t1, t2: Types to compare completely
+        _depth: Internal recursion depth counter
 
     Returns:
         True if fully compatible
@@ -422,7 +432,7 @@ def is_fully_compatible(t1: Type[Any], t2: Type[Any]) -> bool:
     if not is_equivalent_origin(t1, t2):
         return False
 
-    return are_args_compatible(t1, t2)
+    return are_args_compatible(t1, t2, _depth)
 
 
 def _handle_union_compatibility(t1: Type[Any], t2: Type[Any], o1: Any, o2: Any) -> bool:

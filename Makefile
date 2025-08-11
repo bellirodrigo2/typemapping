@@ -66,8 +66,8 @@ lint_fix:
 
 format:
 	@echo "Formatting code (black e isort)..."
-	black .
-	isort .
+	black typemapping
+	isort typemapping
 
 build: clean
 	@echo "Building package ..."

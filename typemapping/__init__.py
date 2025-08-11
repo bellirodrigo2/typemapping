@@ -59,16 +59,16 @@ __all__ = [
     "extend_equiv_otigin",
     "is_optional_type",
     "get_optional_inner_type",
-    "get_nested_field_type"
+    "get_nested_field_type",
 ]
 
 
 from typemapping.typemapping import (
-    get_nested_field_type,
     NO_DEFAULT,
     VarTypeInfo,
     get_field_type,
     get_func_args,
+    get_nested_field_type,
     get_return_type,
     get_safe_type_hints,
     map_dataclass_fields,

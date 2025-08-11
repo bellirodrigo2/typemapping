@@ -212,7 +212,7 @@ def extended_isinstance(obj: Any, type_hint: Type[Any]) -> bool:
     return _validate_generic_args(obj, args, origin)
 
 
-def is_equal_type(t1: Type[Any], t2: Type[Any]) -> bool:
+def is_equal_type(t1: Type[Any], t2: Type[Any], _depth: int = 0) -> bool:
     """
     Compare two types for strict equality, handling both basic and generic types.
 
@@ -223,6 +223,7 @@ def is_equal_type(t1: Type[Any], t2: Type[Any]) -> bool:
     Args:
         t1: First type to compare
         t2: Second type to compare
+        _depth: Internal recursion depth counter
 
     Returns:
         True if types are exactly equal, False otherwise
@@ -234,6 +235,10 @@ def is_equal_type(t1: Type[Any], t2: Type[Any]) -> bool:
         >>> is_equal_type(int, int)  # True
         >>> is_equal_type(None, None)  # True
     """
+    # Prevent infinite recursion
+    if _depth > 50:
+        return False
+
     # Handle None cases
     if t1 is None or t2 is None:
         return t1 is t2
@@ -250,7 +255,7 @@ def is_equal_type(t1: Type[Any], t2: Type[Any]) -> bool:
         # Compare all components (base type + metadata)
         return all(
             (
-                is_equal_type(a1, a2)
+                is_equal_type(a1, a2, _depth + 1)
                 if hasattr(a1, "__class__") and hasattr(a2, "__class__")
                 else a1 == a2
             )
@@ -277,7 +282,9 @@ def is_equal_type(t1: Type[Any], t2: Type[Any]) -> bool:
         return False
 
     # Recursively check all arguments for strict equality
-    return all(is_equal_type(arg1, arg2) for arg1, arg2 in zip(args1, args2))
+    return all(
+        is_equal_type(arg1, arg2, _depth + 1) for arg1, arg2 in zip(args1, args2)
+    )
 
 
 def defensive_issubclass(cls: Any, classinfo: Type[Any]) -> bool:
@@ -483,12 +490,14 @@ def _is_abstraction_compatible(sub_origin: Type[Any], super_origin: Type[Any]) -
 
     # Also import from typing for compatibility
     from typing import Container as TypingContainer
-    from typing import Dict, FrozenSet, List, Set, Tuple
+    from typing import Dict, FrozenSet
     from typing import Iterable as TypingIterable
+    from typing import List
     from typing import Mapping as TypingMapping
     from typing import MutableMapping as TypingMutableMapping
     from typing import MutableSequence as TypingMutableSequence
     from typing import Sequence as TypingSequence
+    from typing import Set, Tuple
 
     # Import all possible collection types
     try:

@@ -308,7 +308,7 @@ def get_safe_type_hints(
         if hasattr(obj, "__module__") and obj.__module__ in sys.modules:
             try:
                 globalns = _get_module_globals(obj.__module__)
-            except Exception:
+            except (AttributeError, TypeError, KeyError):
                 pass
 
         # For functions, also include their actual module's namespace
@@ -388,7 +388,7 @@ def get_safe_type_hints(
                     if "return" in annotations and annotations["return"] is None:
                         annotations["return"] = type(None)
                     return annotations
-        except Exception:
+        except (AttributeError, TypeError, KeyError, NameError):
             pass
         return {}
 
@@ -721,6 +721,7 @@ def get_func_args(
 
 # ===== FIELD TYPE UTILITIES =====
 
+
 def get_field_type_(
     tgt: Type[Any],
     fieldname: str,
@@ -795,6 +796,7 @@ def get_field_type(
     if btype is not None and is_annotated_type(btype):
         return strip_annotated(btype)
     return btype
+
 
 def get_nested_field_type(model: Type[Any], field_path: str) -> Optional[Type[Any]]:
     """

@@ -101,17 +101,24 @@ class DataBase:
 class DataDerived(DataBase):
     age: int
 
+
 class BaseModel:
     base_field: str = "base_value"
+
+
 class ExtendedModel(BaseModel):
     extended_field: int = 10
+
     def __init__(self, dynamic_value: str) -> None:
         self.dynamic_value = dynamic_value
+
     @property
     def computed_field(self) -> str:
         return f"computed_{self.dynamic_value}"
+
     def method_field(self) -> str:
         return f"method_{self.dynamic_value}"
+
 
 @pytest.mark.parametrize(
     "cls, field, expected_type",

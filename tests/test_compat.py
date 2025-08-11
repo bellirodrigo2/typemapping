@@ -28,11 +28,9 @@ class TestCompatDebug:
         ann = Annotated[str, "meta"]
         result = _debug_annotated(ann)
 
-        # Check that it prints debug info
+        # Check that it no longer prints debug info (security fix)
         captured = capsys.readouterr()
-        assert "Type:" in captured.out
-        assert "Type class:" in captured.out
-        assert "__metadata__:" in captured.out
+        assert captured.out == ""
 
         # Function returns None
         assert result is None
